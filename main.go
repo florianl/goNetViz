@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
 	"log"
 	"os"
@@ -56,6 +57,12 @@ func main() {
 			log.Fatal(err, "\tInvalid filter: ", *filter)
 			os.Exit(1)
 		}
+	}
+
+	packetSource := gopacket.NewPacketSource(handle, layers.LayerTypeEthernet)
+	for packet := range packetSource.Packets() {
+		fmt.Println(packet.Metadata().CaptureInfo.Timestamp.UTC())
+		fmt.Println(packet.Data())
 	}
 
 }
