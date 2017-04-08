@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/google/gopacket"
 	"github.com/google/gopacket/pcap"
 	"log"
 	"os"
@@ -33,6 +34,7 @@ func main() {
 	var handle *pcap.Handle
 
 	dev := flag.String("interface", "lo", "Chose an interface")
+	filter := flag.String("filter", "", "Set a specific filter")
 	lst := flag.Bool("list_interfaces", false, "List available interfaces")
 	flag.Parse()
 
@@ -47,5 +49,13 @@ func main() {
 		os.Exit(1)
 	}
 	defer handle.Close()
+
+	if len(*filter) != 0 {
+		err = handle.SetBPFFilter(*filter)
+		if err != nil {
+			log.Fatal(err, "\tInvalid filter: ", *filter)
+			os.Exit(1)
+		}
+	}
 
 }
