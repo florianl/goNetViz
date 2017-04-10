@@ -10,6 +10,13 @@ import (
 	"os"
 )
 
+func handlePackets(ps *gopacket.PacketSource) {
+	for packet := range ps.Packets() {
+		fmt.Println(packet.Metadata().CaptureInfo.Timestamp.UTC())
+		fmt.Println(packet.Data())
+	}
+}
+
 func availableInterfaces() {
 	devices, err := pcap.FindAllDevs()
 	if err != nil {
@@ -60,9 +67,8 @@ func main() {
 	}
 
 	packetSource := gopacket.NewPacketSource(handle, layers.LayerTypeEthernet)
-	for packet := range packetSource.Packets() {
-		fmt.Println(packet.Metadata().CaptureInfo.Timestamp.UTC())
-		fmt.Println(packet.Data())
-	}
+	packetSource.DecodeOptions = gopacket.Lazy
+
+	handlePackets(packetSource)
 
 }
