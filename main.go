@@ -10,6 +10,8 @@ import (
 	"os"
 )
 
+const Version = "0.0.1"
+
 func handlePackets(ps *gopacket.PacketSource) {
 	for packet := range ps.Packets() {
 		fmt.Println(packet.Metadata().CaptureInfo.Timestamp.UTC())
@@ -44,10 +46,22 @@ func main() {
 	dev := flag.String("interface", "lo", "Chose an interface")
 	filter := flag.String("filter", "", "Set a specific filter")
 	lst := flag.Bool("list_interfaces", false, "List available interfaces")
+	vers := flag.Bool("version", false, "Show version")
+	help := flag.Bool("help", false, "Show help")
 	flag.Parse()
 
 	if *lst {
 		availableInterfaces()
+		return
+	}
+
+	if *vers {
+		fmt.Println("Version:", Version)
+		return
+	}
+
+	if *help {
+		flag.PrintDefaults()
 		return
 	}
 
