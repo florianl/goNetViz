@@ -6,17 +6,54 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
+	"image"
+	"image/color"
+	"image/png"
 	"log"
 	"os"
 )
 
 const Version = "0.0.1"
 
-func handlePackets(ps *gopacket.PacketSource) {
+func handlePackets(ps *gopacket.PacketSource, img *image.NRGBA, num uint) {
+	var count uint
+	var y int
 	for packet := range ps.Packets() {
-		fmt.Println(packet.Metadata().CaptureInfo.Timestamp.UTC())
-		fmt.Println(packet.Data())
+		var i int
+		var j int
+		count++
+		if count > num {
+			break
+		}
+		elements := packet.Data()
+		for i = 0; i+3 <= len(elements); i += 3 {
+			img.Set(j, y, color.NRGBA{
+				R: uint8(elements[i] & 255),
+				G: uint8(elements[i+1] & 255),
+				B: uint8(elements[i+2] & 255),
+				A: 255})
+			j++
+		}
+		switch len(elements) - i {
+		case 2:
+			img.Set(j, y, color.NRGBA{
+				R: uint8(elements[i] & 255),
+				G: uint8(elements[i+1] & 255),
+				B: uint8(0),
+				A: 255})
+			break
+		case 1:
+			img.Set(j, y, color.NRGBA{
+				R: uint8(elements[i] & 255),
+				G: uint8(0 & 255),
+				B: uint8(0 & 255),
+				A: 255})
+			break
+		default:
+		}
+		y++
 	}
+	return
 }
 
 func availableInterfaces() {
@@ -48,6 +85,8 @@ func main() {
 	lst := flag.Bool("list_interfaces", false, "List available interfaces")
 	vers := flag.Bool("version", false, "Show version")
 	help := flag.Bool("help", false, "Show help")
+	num := flag.Uint("count", 10, "Number of packets to process")
+	output := flag.String("output", "image.png", "Name of the resulting image")
 	flag.Parse()
 
 	if *lst {
@@ -64,6 +103,8 @@ func main() {
 		flag.PrintDefaults()
 		return
 	}
+
+	img := image.NewNRGBA(image.Rect(0, 0, 512, int(*num)))
 
 	handle, err = pcap.OpenLive(*dev, 4096, true, pcap.BlockForever)
 	if err != nil {
@@ -83,6 +124,19 @@ func main() {
 	packetSource := gopacket.NewPacketSource(handle, layers.LayerTypeEthernet)
 	packetSource.DecodeOptions = gopacket.Lazy
 
-	handlePackets(packetSource)
+	handlePackets(packetSource, img, *num)
 
+	f, err := os.Create(*output)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if err := png.Encode(f, img); err != nil {
+		f.Close()
+		log.Fatal(err)
+	}
+
+	if err := f.Close(); err != nil {
+		log.Fatal(err)
+	}
 }
