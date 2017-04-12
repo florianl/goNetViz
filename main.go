@@ -80,7 +80,8 @@ func main() {
 	var err error
 	var handle *pcap.Handle
 
-	dev := flag.String("interface", "lo", "Chose an interface")
+	dev := flag.String("interface", "", "Choose an interface for online processing")
+	file := flag.String("file", "", "Choose a file for offline processing")
 	filter := flag.String("filter", "", "Set a specific filter")
 	lst := flag.Bool("list_interfaces", false, "List available interfaces")
 	vers := flag.Bool("version", false, "Show version")
@@ -104,14 +105,25 @@ func main() {
 		return
 	}
 
-	img := image.NewNRGBA(image.Rect(0, 0, 512, int(*num)))
-
-	handle, err = pcap.OpenLive(*dev, 4096, true, pcap.BlockForever)
-	if err != nil {
-		log.Fatal(err)
-		os.Exit(1)
+	if len(*dev) > 0 {
+		handle, err = pcap.OpenLive(*dev, 4096, true, pcap.BlockForever)
+		if err != nil {
+			log.Fatal(err)
+			os.Exit(1)
+		}
+	} else if len(*file) > 0 {
+		handle, err = pcap.OpenOffline(*file)
+		if err != nil {
+			log.Fatal(err)
+			os.Exit(1)
+		}
+	} else {
+		fmt.Println("Source is missing")
+		return
 	}
 	defer handle.Close()
+
+	img := image.NewNRGBA(image.Rect(0, 0, 512, int(*num)))
 
 	if len(*filter) != 0 {
 		err = handle.SetBPFFilter(*filter)
