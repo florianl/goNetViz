@@ -1,8 +1,9 @@
 goNetViz
 ========
 
-This is `goNetViz`. `goNetViz` visualizes your network traffic, either by
-reading a file or attaching to a network interface.
+This is `goNetViz` and it is written in [golang](https://golang.org/).
+`goNetViz` visualizes your network traffic, either by reading a file or
+attaching to a network interface.
 
         $ ./main -help
           -count uint
@@ -29,8 +30,6 @@ Building
           Cloning into 'goNetViz'...
           [...]
         $ cd goNetViz/
-        $ export GOPATH=$HOME/go
-          [...]
         $ export GOPATH=$HOME/go
         $ go get github.com/google/gopacket
           [...]
