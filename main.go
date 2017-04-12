@@ -90,6 +90,11 @@ func main() {
 	output := flag.String("output", "image.png", "Name of the resulting image")
 	flag.Parse()
 
+	if flag.NFlag() < 1 {
+		flag.PrintDefaults()
+		return
+	}
+
 	if *lst {
 		availableInterfaces()
 		return
