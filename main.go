@@ -26,6 +26,9 @@ func handlePackets(ps *gopacket.PacketSource, img *image.NRGBA, num uint) {
 			break
 		}
 		elements := packet.Data()
+		if len(elements) == 0 {
+			continue
+		}
 		for i = 0; i+3 <= len(elements); i += 3 {
 			img.Set(j, y, color.NRGBA{
 				R: uint8(elements[i] & 255),
