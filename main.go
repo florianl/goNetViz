@@ -15,12 +15,15 @@ import (
 
 const Version = "0.0.1"
 
-func handlePackets(ps *gopacket.PacketSource, img *image.NRGBA, num uint) {
+type Data struct {
+	toa     int64
+	payload []byte
+}
+
+func handlePackets(ps *gopacket.PacketSource, num uint, ch chan Data) {
 	var count uint
-	var y int
 	for packet := range ps.Packets() {
-		var i int
-		var j int
+		var k Data
 		count++
 		if count > num {
 			break
@@ -29,33 +32,10 @@ func handlePackets(ps *gopacket.PacketSource, img *image.NRGBA, num uint) {
 		if len(elements) == 0 {
 			continue
 		}
-		for i = 0; i+3 <= len(elements); i += 3 {
-			img.Set(j, y, color.NRGBA{
-				R: uint8(elements[i] & 255),
-				G: uint8(elements[i+1] & 255),
-				B: uint8(elements[i+2] & 255),
-				A: 255})
-			j++
-		}
-		switch len(elements) - i {
-		case 2:
-			img.Set(j, y, color.NRGBA{
-				R: uint8(elements[i] & 255),
-				G: uint8(elements[i+1] & 255),
-				B: uint8(0),
-				A: 255})
-			break
-		case 1:
-			img.Set(j, y, color.NRGBA{
-				R: uint8(elements[i] & 255),
-				G: uint8(0 & 255),
-				B: uint8(0 & 255),
-				A: 255})
-			break
-		default:
-		}
-		y++
+		k = Data{toa: packet.Metadata().CaptureInfo.Timestamp.UnixNano(), payload: packet.Data()}
+		ch <- k
 	}
+	close(ch)
 	return
 }
 
@@ -82,6 +62,9 @@ func availableInterfaces() {
 func main() {
 	var err error
 	var handle *pcap.Handle
+	var data []Data
+	var xMax int
+	ch := make(chan Data)
 
 	dev := flag.String("interface", "", "Choose an interface for online processing")
 	file := flag.String("file", "", "Choose a file for offline processing")
@@ -131,8 +114,6 @@ func main() {
 	}
 	defer handle.Close()
 
-	img := image.NewNRGBA(image.Rect(0, 0, 512, int(*num)))
-
 	if len(*filter) != 0 {
 		err = handle.SetBPFFilter(*filter)
 		if err != nil {
@@ -144,7 +125,43 @@ func main() {
 	packetSource := gopacket.NewPacketSource(handle, layers.LayerTypeEthernet)
 	packetSource.DecodeOptions = gopacket.Lazy
 
-	handlePackets(packetSource, img, *num)
+	go handlePackets(packetSource, *num, ch)
+
+	for i := range ch {
+		data = append(data, i)
+		if xMax < len(i.payload) {
+			xMax = len(i.payload)
+		}
+	}
+	xMax++
+
+	img := image.NewNRGBA(image.Rect(0, 0, xMax/3+1, len(data)))
+
+	for i := range data {
+		var j int
+		for j = 0; j+3 <= len(data[i].payload); j += 3 {
+			img.Set(j/3, i, color.NRGBA{
+				R: uint8(data[i].payload[j]),
+				G: uint8(data[i].payload[j+1]),
+				B: uint8(data[i].payload[j+2]),
+				A: 255})
+		}
+		switch len(data[i].payload) - j {
+		case 2:
+			img.Set(j/3, i, color.NRGBA{
+				R: uint8(data[i].payload[j]),
+				G: uint8(data[i].payload[j+1]),
+				B: uint8(0),
+				A: 255})
+		case 1:
+			img.Set(j/3, i, color.NRGBA{
+				R: uint8(data[i].payload[j]),
+				G: uint8(0),
+				B: uint8(0),
+				A: 255})
+		default:
+		}
+	}
 
 	f, err := os.Create(*output)
 	if err != nil {
