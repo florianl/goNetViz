@@ -11,6 +11,7 @@ import (
 	"image/png"
 	"log"
 	"os"
+	"strconv"
 )
 
 const Version = "0.0.1"
@@ -18,6 +19,56 @@ const Version = "0.0.1"
 type Data struct {
 	toa     int64
 	payload []byte
+}
+
+func createVisualization(data []Data, xMax int, prefix string, num int) {
+
+	img := image.NewNRGBA(image.Rect(0, 0, xMax/3+1, len(data)))
+
+	for i := range data {
+		var j int
+		for j = 0; j+3 <= len(data[i].payload); j += 3 {
+			img.Set(j/3, i, color.NRGBA{
+				R: uint8(data[i].payload[j]),
+				G: uint8(data[i].payload[j+1]),
+				B: uint8(data[i].payload[j+2]),
+				A: 255})
+		}
+		switch len(data[i].payload) - j {
+		case 2:
+			img.Set(j/3, i, color.NRGBA{
+				R: uint8(data[i].payload[j]),
+				G: uint8(data[i].payload[j+1]),
+				B: uint8(0),
+				A: 255})
+		case 1:
+			img.Set(j/3, i, color.NRGBA{
+				R: uint8(data[i].payload[j]),
+				G: uint8(0),
+				B: uint8(0),
+				A: 255})
+		default:
+		}
+	}
+
+	filename := prefix
+	filename += strconv.Itoa(num)
+	filename += ".png"
+	f, err := os.Create(filename)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if err := png.Encode(f, img); err != nil {
+		f.Close()
+		log.Fatal(err)
+	}
+
+	if err := f.Close(); err != nil {
+		log.Fatal(err)
+	}
+
+	return
 }
 
 func handlePackets(ps *gopacket.PacketSource, num uint, ch chan Data) {
@@ -28,6 +79,7 @@ func handlePackets(ps *gopacket.PacketSource, num uint, ch chan Data) {
 		if count > num {
 			break
 		}
+
 		elements := packet.Data()
 		if len(elements) == 0 {
 			continue
@@ -64,6 +116,7 @@ func main() {
 	var handle *pcap.Handle
 	var data []Data
 	var xMax int
+	var index int = 1
 	ch := make(chan Data)
 
 	dev := flag.String("interface", "", "Choose an interface for online processing")
@@ -72,8 +125,9 @@ func main() {
 	lst := flag.Bool("list_interfaces", false, "List available interfaces")
 	vers := flag.Bool("version", false, "Show version")
 	help := flag.Bool("help", false, "Show help")
-	num := flag.Uint("count", 10, "Number of packets to process")
-	output := flag.String("output", "image.png", "Name of the resulting image")
+	num := flag.Uint("count", 25, "Number of packets to process")
+	output := flag.String("prefix", "image", "Prefix of the resulting image")
+	size := flag.Uint("size", 25, "Number of packets per image")
 	flag.Parse()
 
 	if flag.NFlag() < 1 {
@@ -132,48 +186,18 @@ func main() {
 		if xMax < len(i.payload) {
 			xMax = len(i.payload)
 		}
-	}
-	xMax++
-
-	img := image.NewNRGBA(image.Rect(0, 0, xMax/3+1, len(data)))
-
-	for i := range data {
-		var j int
-		for j = 0; j+3 <= len(data[i].payload); j += 3 {
-			img.Set(j/3, i, color.NRGBA{
-				R: uint8(data[i].payload[j]),
-				G: uint8(data[i].payload[j+1]),
-				B: uint8(data[i].payload[j+2]),
-				A: 255})
-		}
-		switch len(data[i].payload) - j {
-		case 2:
-			img.Set(j/3, i, color.NRGBA{
-				R: uint8(data[i].payload[j]),
-				G: uint8(data[i].payload[j+1]),
-				B: uint8(0),
-				A: 255})
-		case 1:
-			img.Set(j/3, i, color.NRGBA{
-				R: uint8(data[i].payload[j]),
-				G: uint8(0),
-				B: uint8(0),
-				A: 255})
-		default:
+		if len(data) >= int(*size) {
+			xMax++
+			createVisualization(data, xMax, *output, index)
+			xMax = 0
+			index++
+			data = data[:0]
 		}
 	}
 
-	f, err := os.Create(*output)
-	if err != nil {
-		log.Fatal(err)
+	if len(data) > 0 {
+		xMax++
+		createVisualization(data, xMax, *output, index)
 	}
 
-	if err := png.Encode(f, img); err != nil {
-		f.Close()
-		log.Fatal(err)
-	}
-
-	if err := f.Close(); err != nil {
-		log.Fatal(err)
-	}
 }
