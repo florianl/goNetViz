@@ -76,7 +76,7 @@ func handlePackets(ps *gopacket.PacketSource, num uint, ch chan Data) {
 	for packet := range ps.Packets() {
 		var k Data
 		count++
-		if count > num {
+		if count != 0 && count > num {
 			break
 		}
 
@@ -124,8 +124,8 @@ func main() {
 	filter := flag.String("filter", "", "Set a specific filter")
 	lst := flag.Bool("list_interfaces", false, "List available interfaces")
 	vers := flag.Bool("version", false, "Show version")
-	help := flag.Bool("help", false, "Show help")
-	num := flag.Uint("count", 25, "Number of packets to process")
+	help := flag.Bool("help", false, "Show this help")
+	num := flag.Uint("count", 25, "Number of packets to process.\n\tIf argument is 0 the limit is removed")
 	output := flag.String("prefix", "image", "Prefix of the resulting image")
 	size := flag.Uint("size", 25, "Number of packets per image")
 	flag.Parse()
