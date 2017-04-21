@@ -11,6 +11,7 @@ import (
 	"image/png"
 	"log"
 	"os"
+	"os/signal"
 	"strconv"
 )
 
@@ -71,10 +72,14 @@ func createVisualization(data []Data, xMax int, prefix string, num int) {
 	return
 }
 
-func handlePackets(ps *gopacket.PacketSource, num uint, ch chan Data) {
+func handlePackets(ps *gopacket.PacketSource, num uint, ch chan Data, sig <-chan os.Signal) {
 	var count uint
 	for packet := range ps.Packets() {
 		var k Data
+		if <-sig == os.Interrupt {
+			close(ch)
+			return
+		}
 		count++
 		if count != 0 && count > num {
 			break
@@ -118,6 +123,8 @@ func main() {
 	var xMax int
 	var index int = 1
 	ch := make(chan Data)
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, os.Interrupt)
 
 	dev := flag.String("interface", "", "Choose an interface for online processing")
 	file := flag.String("file", "", "Choose a file for offline processing")
@@ -179,7 +186,7 @@ func main() {
 	packetSource := gopacket.NewPacketSource(handle, layers.LayerTypeEthernet)
 	packetSource.DecodeOptions = gopacket.Lazy
 
-	go handlePackets(packetSource, *num, ch)
+	go handlePackets(packetSource, *num, ch, sig)
 
 	for i := range ch {
 		data = append(data, i)
@@ -194,7 +201,6 @@ func main() {
 			data = data[:0]
 		}
 	}
-
 	if len(data) > 0 {
 		xMax++
 		createVisualization(data, xMax, *output, index)
