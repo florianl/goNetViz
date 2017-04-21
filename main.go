@@ -77,9 +77,13 @@ func handlePackets(ps *gopacket.PacketSource, num uint, ch chan Data, sig <-chan
 	var count uint
 	for packet := range ps.Packets() {
 		var k Data
-		if <-sig == os.Interrupt {
+
+		select {
+		case isr := <-sig:
+			fmt.Println(isr)
 			close(ch)
 			return
+		default:
 		}
 		count++
 		if num != 0 && count > num {
@@ -189,7 +193,7 @@ func main() {
 
 	go handlePackets(packetSource, *num, ch, sig)
 
-	for i := range ch {
+	for i, ok := <-ch; ok; i, ok = <-ch {
 		data = append(data, i)
 		if xMax < len(i.payload) {
 			xMax = len(i.payload)
