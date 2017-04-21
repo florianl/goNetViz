@@ -49,6 +49,7 @@ func createVisualization(data []Data, xMax int, prefix string, num int) {
 				B: uint8(0),
 				A: 255})
 		default:
+
 		}
 	}
 
@@ -81,7 +82,7 @@ func handlePackets(ps *gopacket.PacketSource, num uint, ch chan Data, sig <-chan
 			return
 		}
 		count++
-		if count != 0 && count > num {
+		if num != 0 && count > num {
 			break
 		}
 
