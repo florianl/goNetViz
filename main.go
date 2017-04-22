@@ -15,41 +15,64 @@ import (
 	"strconv"
 )
 
-const Version = "0.0.1"
+const Version = "0.0.2"
 
 type Data struct {
 	toa     int64
 	payload []byte
 }
 
-func createVisualization(data []Data, xMax int, prefix string, num int) {
-
-	img := image.NewNRGBA(image.Rect(0, 0, xMax/3+1, len(data)))
-
-	for i := range data {
-		var j int
-		for j = 0; j+3 <= len(data[i].payload); j += 3 {
-			img.Set(j/3, i, color.NRGBA{
-				R: uint8(data[i].payload[j]),
-				G: uint8(data[i].payload[j+1]),
-				B: uint8(data[i].payload[j+2]),
-				A: 255})
+func getBitsFromPacket(packet []byte, byteP, bitP *int, bpP int) uint8 {
+	var c uint8
+	for i := 0; i < (bpP / 3); i++ {
+		if *byteP >= len(packet) {
+			break
 		}
-		switch len(data[i].payload) - j {
-		case 2:
-			img.Set(j/3, i, color.NRGBA{
-				R: uint8(data[i].payload[j]),
-				G: uint8(data[i].payload[j+1]),
-				B: uint8(0),
-				A: 255})
-		case 1:
-			img.Set(j/3, i, color.NRGBA{
-				R: uint8(data[i].payload[j]),
-				G: uint8(0),
-				B: uint8(0),
-				A: 255})
-		default:
+		c |= (packet[*byteP] & (1 << uint8(7-*bitP)))
+		*bitP += 1
+		if *bitP%8 == 0 {
+			*bitP = 0
+			*byteP += 1
+		}
+	}
+	return c
+}
 
+func createPixel(packet []byte, byteP, bitP *int, bpP int) (c color.Color) {
+	var r, g, b uint8
+
+	r = getBitsFromPacket(packet, byteP, bitP, bpP)
+	g = getBitsFromPacket(packet, byteP, bitP, bpP)
+	b = getBitsFromPacket(packet, byteP, bitP, bpP)
+
+	c = color.NRGBA{R: r,
+		G: g,
+		B: b,
+		A: 255}
+
+	return
+}
+
+func createVisualization(data []Data, xMax int, prefix string, num int, bitsPerPixel int) {
+	var xPos int
+	var bitPos int
+	var bytePos int
+	var packetLen int
+
+	img := image.NewNRGBA(image.Rect(0, 0, (xMax*8)/bitsPerPixel+1, len(data)))
+
+	for yPos := range data {
+		packetLen = len(data[yPos].payload)
+		xPos = 0
+		bitPos = 0
+		bytePos = 0
+		for {
+			c := createPixel(data[yPos].payload, &bytePos, &bitPos, bitsPerPixel)
+			img.Set(xPos, yPos, c)
+			xPos++
+			if bytePos >= packetLen {
+				break
+			}
 		}
 	}
 
@@ -140,6 +163,7 @@ func main() {
 	num := flag.Uint("count", 25, "Number of packets to process.\n\tIf argument is 0 the limit is removed")
 	output := flag.String("prefix", "image", "Prefix of the resulting image")
 	size := flag.Uint("size", 25, "Number of packets per image")
+	bits := flag.Uint("bits", 24, "Number of bits per pixel")
 	flag.Parse()
 
 	if flag.NFlag() < 1 {
@@ -154,6 +178,11 @@ func main() {
 
 	if *vers {
 		fmt.Println("Version:", Version)
+		return
+	}
+
+	if *bits%3 != 0 {
+		fmt.Println(*bits, "must be divisible by three")
 		return
 	}
 
@@ -200,7 +229,7 @@ func main() {
 		}
 		if len(data) >= int(*size) {
 			xMax++
-			createVisualization(data, xMax, *output, index)
+			createVisualization(data, xMax, *output, index, int(*bits))
 			xMax = 0
 			index++
 			data = data[:0]
@@ -208,7 +237,7 @@ func main() {
 	}
 	if len(data) > 0 {
 		xMax++
-		createVisualization(data, xMax, *output, index)
+		createVisualization(data, xMax, *output, index, int(*bits))
 	}
 
 }
