@@ -13,12 +13,15 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"time"
 )
 
 const Version = "0.0.2"
 
+const flagTimeslize = 0x1
+
 type Data struct {
-	toa     int64
+	toa     int64 // Timestamp in microseconds
 	payload []byte
 }
 
@@ -53,7 +56,55 @@ func createPixel(packet []byte, byteP, bitP *int, bpP int) (c color.Color) {
 	return
 }
 
-func createVisualization(data []Data, xMax int, prefix string, num int, bitsPerPixel int) {
+func createTimeVisualization(data []Data, xMax int, prefix string, ts uint, bitsPerPixel int) {
+	var xPos int
+	var bitPos int
+	var bytePos int
+	var packetLen int
+	var firstPkg time.Time
+
+	img := image.NewNRGBA(image.Rect(0, 0, (xMax*8)/bitsPerPixel+1, int(ts)))
+
+	for pkg := range data {
+		if firstPkg.IsZero() {
+			firstPkg = time.Unix(0, data[pkg].toa*int64(time.Microsecond))
+		}
+		packetLen = len(data[pkg].payload)
+		xPos = 0
+		bitPos = 0
+		bytePos = 0
+		for {
+			c := createPixel(data[pkg].payload, &bytePos, &bitPos, bitsPerPixel)
+			img.Set(xPos, int(data[pkg].toa%int64(ts)), c)
+			xPos++
+			if bytePos >= packetLen {
+				break
+			}
+		}
+	}
+
+	filename := prefix
+	filename += "-"
+	filename += firstPkg.Format(time.RFC3339Nano)
+	filename += ".png"
+	f, err := os.Create(filename)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if err := png.Encode(f, img); err != nil {
+		f.Close()
+		log.Fatal(err)
+	}
+
+	if err := f.Close(); err != nil {
+		log.Fatal(err)
+	}
+
+	return
+}
+
+func createFixedVisualization(data []Data, xMax int, prefix string, num int, bitsPerPixel int) {
 	var xPos int
 	var bitPos int
 	var bytePos int
@@ -117,7 +168,7 @@ func handlePackets(ps *gopacket.PacketSource, num uint, ch chan Data, sig <-chan
 		if len(elements) == 0 {
 			continue
 		}
-		k = Data{toa: packet.Metadata().CaptureInfo.Timestamp.UnixNano(), payload: packet.Data()}
+		k = Data{toa: (packet.Metadata().CaptureInfo.Timestamp.UnixNano() / int64(time.Microsecond)), payload: packet.Data()}
 		ch <- k
 	}
 	close(ch)
@@ -150,6 +201,8 @@ func main() {
 	var data []Data
 	var xMax int
 	var index int = 1
+	var flags byte
+	var slicer int64
 	ch := make(chan Data)
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt)
@@ -164,6 +217,7 @@ func main() {
 	output := flag.String("prefix", "image", "Prefix of the resulting image")
 	size := flag.Uint("size", 25, "Number of packets per image")
 	bits := flag.Uint("bits", 24, "Number of bits per pixel")
+	ts := flag.Uint("timeslize", 0, "Number of microseconds per resulting image.\n\fSo each pixel of the height of the resulting image represents one microsecond")
 	flag.Parse()
 
 	if flag.NFlag() < 1 {
@@ -184,6 +238,10 @@ func main() {
 	if *bits%3 != 0 {
 		fmt.Println(*bits, "must be divisible by three")
 		return
+	}
+
+	if *ts != 0 {
+		flags |= flagTimeslize
 	}
 
 	if *help {
@@ -223,21 +281,42 @@ func main() {
 	go handlePackets(packetSource, *num, ch, sig)
 
 	for i, ok := <-ch; ok; i, ok = <-ch {
-		data = append(data, i)
-		if xMax < len(i.payload) {
-			xMax = len(i.payload)
-		}
-		if len(data) >= int(*size) {
-			xMax++
-			createVisualization(data, xMax, *output, index, int(*bits))
-			xMax = 0
-			index++
-			data = data[:0]
+		if (flags & flagTimeslize) == flagTimeslize {
+			if slicer == 0 {
+				slicer = i.toa + int64(*ts)
+			}
+			if slicer < i.toa {
+				xMax++
+				createTimeVisualization(data, xMax, *output, *ts, int(*bits))
+				xMax = 0
+				data = data[:0]
+				slicer = i.toa + int64(*ts)
+			}
+			data = append(data, i)
+			if xMax < len(i.payload) {
+				xMax = len(i.payload)
+			}
+		} else {
+			data = append(data, i)
+			if xMax < len(i.payload) {
+				xMax = len(i.payload)
+			}
+			if len(data) >= int(*size) {
+				xMax++
+				createFixedVisualization(data, xMax, *output, index, int(*bits))
+				xMax = 0
+				index++
+				data = data[:0]
+			}
 		}
 	}
 	if len(data) > 0 {
 		xMax++
-		createVisualization(data, xMax, *output, index, int(*bits))
+		if (flags & flagTimeslize) == flagTimeslize {
+			createTimeVisualization(data, xMax, *output, *ts, int(*bits))
+		} else {
+			createFixedVisualization(data, xMax, *output, index, int(*bits))
+		}
 	}
 
 }
