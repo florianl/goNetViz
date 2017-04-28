@@ -6,21 +6,32 @@ This is `goNetViz` and it is written in [golang](https://golang.org/).
 attaching to a network interface.
 
         $ ./main -help
-          -count uint
-                Number of packets to process (default 10)
-          -file string
+          ./main [-bits ...] [-count ...] [-file ... | -interface ...] [-filter ...] [-list_interfaces] [-help] [-prefix ...] [-size ... | -timeslize ...] [-version]
+
+          -bits uint
+                Number of bits per pixel.
+                It must be divisible by three and smaller than 25 (default 24)
+        -count uint
+                Number of packets to process.
+                If argument is 0 the limit is removed (default 25)
+        -file string
                 Choose a file for offline processing
-          -filter string
+        -filter string
                 Set a specific filter
-          -help
-                Show help
-          -interface string
+        -help
+                Show this help
+        -interface string
                 Choose an interface for online processing
-          -list_interfaces
+        -list_interfaces
                 List available interfaces
-          -output string
-                Name of the resulting image (default "image.png")
-          -version
+        -prefix string
+                Prefix of the resulting image (default "image")
+        -size uint
+                Number of packets per image (default 25)
+        -timeslize uint
+                Number of microseconds per resulting image.
+                So each pixel of the height of the resulting image represents one microsecond
+        -version
                 Show version
 
 Building
