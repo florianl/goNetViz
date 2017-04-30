@@ -49,6 +49,14 @@ Building
         $ ./main
           [...]
 
+Or you can get it directly via [golang](https://golang.org/):
+
+        $ export GOPATH=$HOME/go
+        $ go get github.com/florianl/goNetViz
+          [...]
+        $ $GOPATH/bin/goNetViz
+          [...]
+
 License
 -------
 
