@@ -57,6 +57,19 @@ Or you can get it directly via [golang](https://golang.org/):
         $ $GOPATH/bin/goNetViz
           [...]
 
+Examples
+--------
+
+The images below are based on the very same IP traffic. The differences are
+based on the number of bits per pixel. In the first image three bits are used
+per pixel. Then, in the second image, 9 bits of the payload are used per pixel.
+This is followed by 12 bits per pixel and finally 24 bits per pixel.
+
+![3 Payloadbits per Pixel](img/ping3.png)
+![9 Payloadbits per Pixel](img/ping9.png)
+![12 Payloadbits per Pixel](img/ping12.png)
+![24 Payloadbits per Pixel](img/ping24.png)
+
 License
 -------
 
