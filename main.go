@@ -44,15 +44,33 @@ func getBitsFromPacket(packet []byte, byteP, bitP *int, bpP int) uint8 {
 func createPixel(packet []byte, byteP, bitP *int, bpP int) (c color.Color) {
 	var r, g, b uint8
 
-	r = getBitsFromPacket(packet, byteP, bitP, bpP)
-	g = getBitsFromPacket(packet, byteP, bitP, bpP)
-	b = getBitsFromPacket(packet, byteP, bitP, bpP)
+	if bpP == 1 {
+		if (packet[*byteP] & (1 << uint8(7-*bitP))) == 0 {
+			c = color.NRGBA{R: r,
+				G: g,
+				B: b,
+				A: 255}
+		} else {
+			c = color.NRGBA{R: 255,
+				G: 255,
+				B: 255,
+				A: 255}
+		}
+		*bitP += 1
+		if *bitP%8 == 0 {
+			*bitP = 0
+			*byteP += 1
+		}
+	} else {
+		r = getBitsFromPacket(packet, byteP, bitP, bpP)
+		g = getBitsFromPacket(packet, byteP, bitP, bpP)
+		b = getBitsFromPacket(packet, byteP, bitP, bpP)
 
-	c = color.NRGBA{R: r,
-		G: g,
-		B: b,
-		A: 255}
-
+		c = color.NRGBA{R: r,
+			G: g,
+			B: b,
+			A: 255}
+	}
 	return
 }
 
@@ -236,8 +254,8 @@ func main() {
 		return
 	}
 
-	if *bits%3 != 0 {
-		fmt.Println(*bits, "must be divisible by three")
+	if *bits%3 != 0 && *bits != 1 {
+		fmt.Println(*bits, "must be divisible by three or one")
 		return
 	} else if *bits > 25 {
 		fmt.Println(*bits, "must be smaller than 25")
