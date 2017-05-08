@@ -46,9 +46,9 @@ func createPixel(packet []byte, byteP, bitP *int, bpP int) (c color.Color) {
 
 	if bpP == 1 {
 		if (packet[*byteP] & (1 << uint8(7-*bitP))) == 0 {
-			c = color.NRGBA{R: r,
-				G: g,
-				B: b,
+			c = color.NRGBA{R: 0,
+				G: 0,
+				B: 0,
 				A: 255}
 		} else {
 			c = color.NRGBA{R: 255,
