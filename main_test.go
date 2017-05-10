@@ -1,0 +1,30 @@
+package main
+
+import "testing"
+
+func TestGetBitsFromPacket(t *testing.T) {
+
+	var bytePos int
+	var bitPos int
+	tests := []struct {
+		packet []byte
+		bpP    int
+		ret    uint8
+	}{
+		{[]byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, 24, 255},
+		{[]byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, 12, 240},
+		{[]byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, 9, 14},
+		{[]byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, 3, 1},
+		{[]byte{0x00, 0x00, 0x00, 0x00, 0x00}, 24, 0},
+		{[]byte{0x00, 0x00, 0x00, 0x00, 0x00}, 12, 0},
+		{[]byte{0x00, 0x00, 0x00, 0x00, 0x00}, 9, 0},
+		{[]byte{0x00, 0x00, 0x00, 0x00, 0x00}, 3, 0},
+	}
+
+	for _, test := range tests {
+		res := getBitsFromPacket(test.packet, &bytePos, &bitPos, test.bpP)
+		if res != test.ret {
+			t.Errorf("Input: %d Expected: %d \t Got %d", test.packet, test.ret, res)
+		}
+	}
+}
