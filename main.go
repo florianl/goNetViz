@@ -18,8 +18,6 @@ import (
 
 const Version = "0.0.2"
 
-const flagTimeslize = 0x1
-
 type Data struct {
 	toa     int64 // Timestamp in microseconds
 	payload []byte
@@ -143,6 +141,7 @@ func createFixedVisualization(data []Data, xMax int, prefix string, num int, bit
 				break
 			}
 		}
+
 	}
 
 	filename := prefix
@@ -219,8 +218,8 @@ func main() {
 	var data []Data
 	var xMax int
 	var index int = 1
-	var flags byte
 	var slicer int64
+	var flagTimeslize bool = false
 	ch := make(chan Data)
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt)
@@ -263,7 +262,7 @@ func main() {
 	}
 
 	if *ts != 0 {
-		flags |= flagTimeslize
+		flagTimeslize = true
 	}
 
 	if *help {
@@ -303,8 +302,9 @@ func main() {
 
 	go handlePackets(packetSource, *num, ch, sig)
 
-	for i, ok := <-ch; ok; i, ok = <-ch {
-		if (flags & flagTimeslize) == flagTimeslize {
+	switch {
+	case flagTimeslize:
+		for i, ok := <-ch; ok; i, ok = <-ch {
 			if slicer == 0 {
 				slicer = i.toa + int64(*ts)
 			}
@@ -319,7 +319,9 @@ func main() {
 			if xMax < len(i.payload) {
 				xMax = len(i.payload)
 			}
-		} else {
+		}
+	default:
+		for i, ok := <-ch; ok; i, ok = <-ch {
 			data = append(data, i)
 			if xMax < len(i.payload) {
 				xMax = len(i.payload)
@@ -333,9 +335,10 @@ func main() {
 			}
 		}
 	}
+
 	if len(data) > 0 {
 		xMax++
-		if (flags & flagTimeslize) == flagTimeslize {
+		if flagTimeslize {
 			createTimeVisualization(data, xMax, *output, *ts, int(*bits))
 		} else {
 			createFixedVisualization(data, xMax, *output, index, int(*bits))
