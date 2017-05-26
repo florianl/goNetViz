@@ -72,6 +72,28 @@ func createPixel(packet []byte, byteP, bitP *int, bpP int) (c color.Color) {
 	return
 }
 
+func createTerminalVisualization(data []Data, bitsPerPixel int) {
+	var bitPos int
+	var bytePos int
+	var packetLen int
+
+	for i := range data {
+		packetLen = len(data[i].payload)
+		bitPos = 0
+		bytePos = 0
+		for {
+			c := createPixel(data[i].payload, &bytePos, &bitPos, bitsPerPixel)
+			r, g, b, _ := c.RGBA()
+			fmt.Printf("\x1B[0m\x1B[38;2;%d;%d;%dm\u2588", uint8(r), uint8(g), uint8(b))
+			if bytePos >= packetLen {
+				break
+			}
+		}
+		fmt.Printf("\x1B[m\n")
+
+	}
+
+}
 func createTimeVisualization(data []Data, xMax int, prefix string, ts uint, bitsPerPixel int) {
 	var xPos int
 	var bitPos int
@@ -230,6 +252,7 @@ func main() {
 	lst := flag.Bool("list_interfaces", false, "List available interfaces")
 	vers := flag.Bool("version", false, "Show version")
 	help := flag.Bool("help", false, "Show this help")
+	terminalOut := flag.Bool("terminal", false, "Visualize on terminal")
 	num := flag.Uint("count", 25, "Number of packets to process.\n\tIf argument is 0 the limit is removed")
 	output := flag.String("prefix", "image", "Prefix of the resulting image")
 	size := flag.Uint("size", 25, "Number of packets per image")
@@ -319,6 +342,12 @@ func main() {
 			if xMax < len(i.payload) {
 				xMax = len(i.payload)
 			}
+		}
+	case *terminalOut:
+		for i, ok := <-ch; ok; i, ok = <-ch {
+			data = append(data, i)
+			createTerminalVisualization(data, int(*bits))
+			data = data[:0]
 		}
 	default:
 		for i, ok := <-ch; ok; i, ok = <-ch {
