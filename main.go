@@ -243,7 +243,7 @@ func main() {
 	var slicer int64
 	var flagTimeslize bool = false
 	ch := make(chan Data)
-	sig := make(chan os.Signal, 1)
+	sig := make(chan os.Signal)
 	signal.Notify(sig, os.Interrupt)
 
 	dev := flag.String("interface", "", "Choose an interface for online processing")
