@@ -6,7 +6,7 @@ This is `goNetViz` and it is written in [golang](https://golang.org/).
 attaching to a network interface.
 
         $ ./main -help
-          ./main [-bits ...] [-count ...] [-file ... | -interface ...] [-filter ...] [-list_interfaces] [-help] [-prefix ...] [-size ... | -timeslize ...] [-version]
+          ./main [-bits ...] [-count ...] [-file ... | -interface ...] [-filter ...] [-list_interfaces] [-help] [-prefix ...] [-size ... | -timeslize ... | -terminal] [-version]
 
           -bits uint
                 Number of bits per pixel.
@@ -31,6 +31,8 @@ attaching to a network interface.
         -timeslize uint
                 Number of microseconds per resulting image.
                 So each pixel of the height of the resulting image represents one microsecond
+        -terminal
+                Visualize on terminal
         -version
                 Show version
 

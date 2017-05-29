@@ -261,7 +261,7 @@ func main() {
 	flag.Parse()
 
 	if flag.NFlag() < 1 {
-		fmt.Println(os.Args[0], "[-bits ...] [-count ...] [-file ... | -interface ...] [-filter ...] [-list_interfaces] [-help] [-prefix ...] [-size ... | -timeslize ...] [-version]\n")
+		fmt.Println(os.Args[0], "[-bits ...] [-count ...] [-file ... | -interface ...] [-filter ...] [-list_interfaces] [-help] [-prefix ...] [-size ... | -timeslize ... | -terminal] [-version]\n")
 		flag.PrintDefaults()
 		return
 	}
@@ -289,7 +289,7 @@ func main() {
 	}
 
 	if *help {
-		fmt.Println(os.Args[0], "[-bits ...] [-count ...] [-file ... | -interface ...] [-filter ...] [-list_interfaces] [-help] [-prefix ...] [-size ... | -timeslize ...] [-version]\n")
+		fmt.Println(os.Args[0], "[-bits ...] [-count ...] [-file ... | -interface ...] [-filter ...] [-list_interfaces] [-help] [-prefix ...] [-size ... | -timeslize ... | -terminal] [-version]\n")
 		flag.PrintDefaults()
 		return
 	}
