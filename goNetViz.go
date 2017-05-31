@@ -256,7 +256,7 @@ func main() {
 	num := flag.Uint("count", 25, "Number of packets to process.\n\tIf argument is 0 the limit is removed")
 	output := flag.String("prefix", "image", "Prefix of the resulting image")
 	size := flag.Uint("size", 25, "Number of packets per image")
-	bits := flag.Uint("bits", 24, "Number of bits per pixel.\n\tIt must be divisible by three and smaller than 25")
+	bits := flag.Uint("bits", 24, "Number of bits per pixel.\n\tIt must be divisible by three and smaller than 25\n\tTo get black/white results, choose 1 as input.")
 	ts := flag.Uint("timeslize", 0, "Number of microseconds per resulting image.\n\tSo each pixel of the height of the resulting image represents one microsecond")
 	flag.Parse()
 
@@ -289,6 +289,15 @@ func main() {
 	}
 
 	if *help {
+		fmt.Println(os.Args[0], "[-bits ...] [-count ...] [-file ... | -interface ...] [-filter ...] [-list_interfaces] [-help] [-prefix ...] [-size ... | -timeslize ... | -terminal] [-version]")
+		flag.PrintDefaults()
+		return
+	}
+
+	switch {
+	case flagTimeslize == true && *terminalOut:
+		fmt.Println("-timeslize and -terminal can't be combined")
+
 		fmt.Println(os.Args[0], "[-bits ...] [-count ...] [-file ... | -interface ...] [-filter ...] [-list_interfaces] [-help] [-prefix ...] [-size ... | -timeslize ... | -terminal] [-version]")
 		flag.PrintDefaults()
 		return
