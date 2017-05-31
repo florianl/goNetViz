@@ -16,8 +16,10 @@ import (
 	"time"
 )
 
+// Version number of this tool
 const Version = "0.0.2"
 
+// Struct for each network packet
 type Data struct {
 	toa     int64 // Timestamp in microseconds
 	payload []byte
