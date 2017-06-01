@@ -25,9 +25,14 @@ type Data struct {
 	payload []byte  // Copied network packet
 }
 
-func getBitsFromPacket(packet []byte, byteP, bitP *int, bpP int) uint8 {
+// configs represents all the configuration data
+type configs struct {
+        bpP     uint // Bits per Pixel
+}
+
+func getBitsFromPacket(packet []byte, byteP, bitP *int, bpP uint) uint8 {
 	var c uint8
-	for i := 0; i < (bpP / 3); i++ {
+	for i := 0; i < (int(bpP) / 3); i++ {
 		if *byteP >= len(packet) {
 			break
 		}
@@ -41,7 +46,7 @@ func getBitsFromPacket(packet []byte, byteP, bitP *int, bpP int) uint8 {
 	return c
 }
 
-func createPixel(packet []byte, byteP, bitP *int, bpP int) (c color.Color) {
+func createPixel(packet []byte, byteP, bitP *int, bpP uint) (c color.Color) {
 	var r, g, b uint8
 
 	if bpP == 1 {
@@ -74,7 +79,7 @@ func createPixel(packet []byte, byteP, bitP *int, bpP int) (c color.Color) {
 	return
 }
 
-func createTerminalVisualization(data []Data, bitsPerPixel int) {
+func createTerminalVisualization(data []Data, bitsPerPixel uint) {
 	var bitPos int
 	var bytePos int
 	var packetLen int
@@ -96,14 +101,14 @@ func createTerminalVisualization(data []Data, bitsPerPixel int) {
 	}
 
 }
-func createTimeVisualization(data []Data, xMax int, prefix string, ts uint, bitsPerPixel int) {
+func createTimeVisualization(data []Data, xMax int, prefix string, ts uint, bitsPerPixel uint) {
 	var xPos int
 	var bitPos int
 	var bytePos int
 	var packetLen int
 	var firstPkg time.Time
 
-	img := image.NewNRGBA(image.Rect(0, 0, (xMax*8)/bitsPerPixel+1, int(ts)))
+	img := image.NewNRGBA(image.Rect(0, 0, (xMax*8)/int(bitsPerPixel)+1, int(ts)))
 
 	for pkg := range data {
 		if firstPkg.IsZero() {
@@ -144,13 +149,13 @@ func createTimeVisualization(data []Data, xMax int, prefix string, ts uint, bits
 	return
 }
 
-func createFixedVisualization(data []Data, xMax int, prefix string, num int, bitsPerPixel int) {
+func createFixedVisualization(data []Data, xMax int, prefix string, num int, bitsPerPixel uint) {
 	var xPos int
 	var bitPos int
 	var bytePos int
 	var packetLen int
 
-	img := image.NewNRGBA(image.Rect(0, 0, (xMax*8)/bitsPerPixel+1, len(data)))
+	img := image.NewNRGBA(image.Rect(0, 0, (xMax*8)/int(bitsPerPixel)+1, len(data)))
 
 	for yPos := range data {
 		packetLen = len(data[yPos].payload)
@@ -255,6 +260,15 @@ func initSource(dev, file *string) (handle *pcap.Handle , err error){
         return
 }
 
+func checkConfig(config configs) error {
+        if config.bpP %3 != 0 && config.bpP != 1 {
+		return  fmt.Errorf("%d must be divisible by three or should be one", config.bpP)
+	} else if config.bpP > 25 {
+		return  fmt.Errorf("%d must be smaller than 25", config.bpP)
+	}
+       return nil
+}
+
 func main() {
 	var err error
 	var handle *pcap.Handle
@@ -263,6 +277,7 @@ func main() {
 	var index int = 1
 	var slicer int64
 	var flagTimeslize bool = false
+        var config configs
 	ch := make(chan Data)
 	sig := make(chan os.Signal)
 	signal.Notify(sig, os.Interrupt)
@@ -297,13 +312,12 @@ func main() {
 		return
 	}
 
-	if *bits%3 != 0 && *bits != 1 {
-		fmt.Println(*bits, "must be divisible by three or one")
-		return
-	} else if *bits > 25 {
-		fmt.Println(*bits, "must be smaller than 25")
-		return
-	}
+        config.bpP = *bits;
+
+        if err = checkConfig(config); err != nil {
+                log.Fatal(err)
+                os.Exit(1)
+        }
 
 	if *ts != 0 {
 		flagTimeslize = true
@@ -352,7 +366,7 @@ func main() {
 			}
 			if slicer < i.toa {
 				xMax++
-				createTimeVisualization(data, xMax, *output, *ts, int(*bits))
+				createTimeVisualization(data, xMax, *output, *ts, config.bpP)
 				xMax = 0
 				data = data[:0]
 				slicer = i.toa + int64(*ts)
@@ -365,7 +379,7 @@ func main() {
 	case *terminalOut:
 		for i, ok := <-ch; ok; i, ok = <-ch {
 			data = append(data, i)
-			createTerminalVisualization(data, int(*bits))
+			createTerminalVisualization(data, config.bpP)
 			data = data[:0]
 		}
 	default:
@@ -376,7 +390,7 @@ func main() {
 			}
 			if len(data) >= int(*size) {
 				xMax++
-				createFixedVisualization(data, xMax, *output, index, int(*bits))
+				createFixedVisualization(data, xMax, *output, index, config.bpP)
 				xMax = 0
 				index++
 				data = data[:0]
@@ -387,9 +401,9 @@ func main() {
 	if len(data) > 0 {
 		xMax++
 		if flagTimeslize {
-			createTimeVisualization(data, xMax, *output, *ts, int(*bits))
+			createTimeVisualization(data, xMax, *output, *ts, config.bpP)
 		} else {
-			createFixedVisualization(data, xMax, *output, index, int(*bits))
+			createFixedVisualization(data, xMax, *output, index, config.bpP)
 		}
 	}
 
