@@ -19,10 +19,10 @@ import (
 // Version number of this tool
 const Version = "0.0.2"
 
-// Struct for each network packet
+// Data is a struct for each network packet
 type Data struct {
-	toa     int64 // Timestamp in microseconds
-	payload []byte
+	toa     int64 // Timestamp of arrival in microseconds
+	payload []byte  // Copied network packet
 }
 
 func getBitsFromPacket(packet []byte, byteP, bitP *int, bpP int) uint8 {
