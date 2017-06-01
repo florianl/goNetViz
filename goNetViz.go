@@ -236,6 +236,25 @@ func availableInterfaces() {
 	}
 }
 
+func initSource(dev, file *string) (handle *pcap.Handle , err error){
+	if len(*dev) > 0 {
+		handle, err = pcap.OpenLive(*dev, 4096, true, pcap.BlockForever)
+		if err != nil {
+			log.Fatal(err)
+			os.Exit(1)
+		}
+	} else if len(*file) > 0 {
+		handle, err = pcap.OpenOffline(*file)
+		if err != nil {
+			log.Fatal(err)
+			os.Exit(1)
+		}
+	} else {
+		return nil, fmt.Errorf("Source is missing\n")
+	}
+        return
+}
+
 func main() {
 	var err error
 	var handle *pcap.Handle
@@ -305,22 +324,11 @@ func main() {
 		return
 	}
 
-	if len(*dev) > 0 {
-		handle, err = pcap.OpenLive(*dev, 4096, true, pcap.BlockForever)
-		if err != nil {
-			log.Fatal(err)
-			os.Exit(1)
-		}
-	} else if len(*file) > 0 {
-		handle, err = pcap.OpenOffline(*file)
-		if err != nil {
-			log.Fatal(err)
-			os.Exit(1)
-		}
-	} else {
-		fmt.Println("Source is missing")
-		return
-	}
+        handle, err = initSource(dev, file)
+        if err != nil {
+                log.Fatal(err)
+                os.Exit(1)
+        }
 	defer handle.Close()
 
 	if len(*filter) != 0 {
