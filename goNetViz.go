@@ -16,18 +16,26 @@ import (
 	"time"
 )
 
+const SOLDER = 0x01
+const TERMINAL = 0x02
+const TIMESLIZES = 0x04
+
 // Version number of this tool
 const Version = "0.0.2"
 
 // Data is a struct for each network packet
 type Data struct {
-	toa     int64 // Timestamp of arrival in microseconds
-	payload []byte  // Copied network packet
+	toa     int64  // Timestamp of arrival in microseconds
+	payload []byte // Copied network packet
 }
 
 // configs represents all the configuration data
 type configs struct {
-        bpP     uint // Bits per Pixel
+	bpP   uint // Bits per Pixel
+	ppI   uint // Number of packets per Image
+	ts    uint // "Duration" for one Image
+	limit uint // Number of network packets to process
+	stil  uint // Type of illustration
 }
 
 func getBitsFromPacket(packet []byte, byteP, bitP *int, bpP uint) uint8 {
@@ -241,7 +249,7 @@ func availableInterfaces() {
 	}
 }
 
-func initSource(dev, file *string) (handle *pcap.Handle , err error){
+func initSource(dev, file *string) (handle *pcap.Handle, err error) {
 	if len(*dev) > 0 {
 		handle, err = pcap.OpenLive(*dev, 4096, true, pcap.BlockForever)
 		if err != nil {
@@ -257,16 +265,27 @@ func initSource(dev, file *string) (handle *pcap.Handle , err error){
 	} else {
 		return nil, fmt.Errorf("Source is missing\n")
 	}
-        return
+	return
 }
 
-func checkConfig(config configs) error {
-        if config.bpP %3 != 0 && config.bpP != 1 {
-		return  fmt.Errorf("%d must be divisible by three or should be one", config.bpP)
-	} else if config.bpP > 25 {
-		return  fmt.Errorf("%d must be smaller than 25", config.bpP)
+func checkConfig(cfg configs) error {
+	if cfg.bpP%3 != 0 && cfg.bpP != 1 {
+		return fmt.Errorf("%d must be divisible by three or should be one", cfg.bpP)
+	} else if cfg.bpP > 25 {
+		return fmt.Errorf("%d must be smaller than 25", cfg.bpP)
 	}
-       return nil
+
+	if cfg.ts > 0 {
+		cfg.stil |= TIMESLIZES
+	}
+
+	if cfg.stil == (TIMESLIZES & TERMINAL) {
+		return fmt.Errorf("-timeslize and -terminal can't be combined")
+	} else if cfg.stil == 0 {
+		// If way of stil is provided, we will stick to the default one
+		cfg.stil |= SOLDER
+	}
+	return nil
 }
 
 func main() {
@@ -276,8 +295,7 @@ func main() {
 	var xMax int
 	var index int = 1
 	var slicer int64
-	var flagTimeslize bool = false
-        var config configs
+	var cfg configs
 	ch := make(chan Data)
 	sig := make(chan os.Signal)
 	signal.Notify(sig, os.Interrupt)
@@ -312,37 +330,35 @@ func main() {
 		return
 	}
 
-        config.bpP = *bits;
-
-        if err = checkConfig(config); err != nil {
-                log.Fatal(err)
-                os.Exit(1)
-        }
-
-	if *ts != 0 {
-		flagTimeslize = true
-	}
-
 	if *help {
 		fmt.Println(os.Args[0], "[-bits ...] [-count ...] [-file ... | -interface ...] [-filter ...] [-list_interfaces] [-help] [-prefix ...] [-size ... | -timeslize ... | -terminal] [-version]")
 		flag.PrintDefaults()
 		return
 	}
 
-	switch {
-	case flagTimeslize == true && *terminalOut:
-		fmt.Println("-timeslize and -terminal can't be combined")
+	cfg.bpP = *bits
+	cfg.ppI = *size
+	cfg.ts = *ts
+	cfg.limit = *num
+	cfg.stil = 0
 
-		fmt.Println(os.Args[0], "[-bits ...] [-count ...] [-file ... | -interface ...] [-filter ...] [-list_interfaces] [-help] [-prefix ...] [-size ... | -timeslize ... | -terminal] [-version]")
-		flag.PrintDefaults()
-		return
+	if *terminalOut == true {
+		cfg.stil |= TERMINAL
+	}
+	if *ts != 0 {
+		cfg.stil |= TIMESLIZES
 	}
 
-        handle, err = initSource(dev, file)
-        if err != nil {
-                log.Fatal(err)
-                os.Exit(1)
-        }
+	if err = checkConfig(cfg); err != nil {
+		log.Fatal(err)
+		os.Exit(1)
+	}
+
+	handle, err = initSource(dev, file)
+	if err != nil {
+		log.Fatal(err)
+		os.Exit(1)
+	}
 	defer handle.Close()
 
 	if len(*filter) != 0 {
@@ -356,33 +372,10 @@ func main() {
 	packetSource := gopacket.NewPacketSource(handle, layers.LayerTypeEthernet)
 	packetSource.DecodeOptions = gopacket.Lazy
 
-	go handlePackets(packetSource, *num, ch, sig)
+	go handlePackets(packetSource, cfg.limit, ch, sig)
 
-	switch {
-	case flagTimeslize:
-		for i, ok := <-ch; ok; i, ok = <-ch {
-			if slicer == 0 {
-				slicer = i.toa + int64(*ts)
-			}
-			if slicer < i.toa {
-				xMax++
-				createTimeVisualization(data, xMax, *output, *ts, config.bpP)
-				xMax = 0
-				data = data[:0]
-				slicer = i.toa + int64(*ts)
-			}
-			data = append(data, i)
-			if xMax < len(i.payload) {
-				xMax = len(i.payload)
-			}
-		}
-	case *terminalOut:
-		for i, ok := <-ch; ok; i, ok = <-ch {
-			data = append(data, i)
-			createTerminalVisualization(data, config.bpP)
-			data = data[:0]
-		}
-	default:
+	switch cfg.stil {
+	case SOLDER:
 		for i, ok := <-ch; ok; i, ok = <-ch {
 			data = append(data, i)
 			if xMax < len(i.payload) {
@@ -390,20 +383,46 @@ func main() {
 			}
 			if len(data) >= int(*size) {
 				xMax++
-				createFixedVisualization(data, xMax, *output, index, config.bpP)
+				createFixedVisualization(data, xMax, *output, index, cfg.bpP)
 				xMax = 0
 				index++
 				data = data[:0]
+			}
+		}
+	case TERMINAL:
+		for i, ok := <-ch; ok; i, ok = <-ch {
+			data = append(data, i)
+			createTerminalVisualization(data, cfg.bpP)
+			data = data[:0]
+		}
+	case TIMESLIZES:
+		for i, ok := <-ch; ok; i, ok = <-ch {
+			if slicer == 0 {
+				slicer = i.toa + int64(*ts)
+			}
+			if slicer < i.toa {
+				xMax++
+				createTimeVisualization(data, xMax, *output, *ts, cfg.bpP)
+				xMax = 0
+				data = data[:0]
+				slicer = i.toa + int64(*ts)
+			}
+			data = append(data, i)
+			if xMax < len(i.payload) {
+				xMax = len(i.payload)
 			}
 		}
 	}
 
 	if len(data) > 0 {
 		xMax++
-		if flagTimeslize {
-			createTimeVisualization(data, xMax, *output, *ts, config.bpP)
-		} else {
-			createFixedVisualization(data, xMax, *output, index, config.bpP)
+		switch cfg.stil {
+		case SOLDER:
+			createFixedVisualization(data, xMax, *output, index, cfg.bpP)
+		case TERMINAL:
+			createTerminalVisualization(data, cfg.bpP)
+		case TIMESLIZES:
+			createTimeVisualization(data, xMax, *output, *ts, cfg.bpP)
 		}
 	}
 
