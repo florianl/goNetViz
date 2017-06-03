@@ -5,8 +5,10 @@ This is `goNetViz` and it is written in [golang](https://golang.org/).
 `goNetViz` visualizes your network traffic, either by reading a file or
 attaching to a network interface.
 
-        $ ./main -help
-          ./main [-bits ...] [-count ...] [-file ... | -interface ...] [-filter ...] [-list_interfaces] [-help] [-prefix ...] [-size ... | -timeslize ... | -terminal] [-version]
+**This project is under heavy development as I am learning [golang](https://golang.org/)! Do not use it in production!**
+
+        $ ./goNetViz -help
+          ./goNetViz [-bits ...] [-count ...] [-file ... | -interface ...] [-filter ...] [-list_interfaces] [-help] [-prefix ...] [-size ... | -timeslize ... | -terminal] [-version]
 
           -bits uint
                 Number of bits per pixel.
@@ -48,7 +50,7 @@ Building
           [...]
         $ go build main.go
           [...]
-        $ ./main
+        $ ./goNetViz
           [...]
 
 Or you can get it directly via [golang](https://golang.org/):
