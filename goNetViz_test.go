@@ -8,7 +8,7 @@ func TestGetBitsFromPacket(t *testing.T) {
 	var bitPos int
 	tests := []struct {
 		packet []byte
-		bpP    int
+		bpP    uint
 		ret    uint8
 	}{
 		{[]byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, 24, 255},
