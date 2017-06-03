@@ -279,7 +279,7 @@ func checkConfig(cfg configs) error {
 		cfg.stil |= TIMESLIZES
 	}
 
-	if cfg.stil == (TIMESLIZES & TERMINAL) {
+	if cfg.stil == (TIMESLIZES | TERMINAL) {
 		return fmt.Errorf("-timeslize and -terminal can't be combined")
 	} else if cfg.stil == 0 {
 		// If way of stil is provided, we will stick to the default one
