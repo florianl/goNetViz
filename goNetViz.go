@@ -16,9 +16,11 @@ import (
 	"time"
 )
 
-const SOLDER = 0x01
-const TERMINAL = 0x02
-const TIMESLIZES = 0x04
+const (
+	SOLDER     = 0x01
+	TERMINAL   = 0x02
+	TIMESLIZES = 0x04
+)
 
 // Version number of this tool
 const Version = "0.0.2"
@@ -201,14 +203,12 @@ func createFixedVisualization(data []Data, xMax int, prefix string, num int, bit
 	return
 }
 
-func handlePackets(ps *gopacket.PacketSource, num uint, ch chan Data, sig <-chan os.Signal) {
+func handlePackets(ps *gopacket.PacketSource, num uint, ch chan<- Data, done <-chan bool) {
 	var count uint
 	for packet := range ps.Packets() {
 		var k Data
-
 		select {
-		case isr := <-sig:
-			fmt.Println(isr)
+		case <-done:
 			close(ch)
 			return
 		default:
@@ -294,11 +294,18 @@ func main() {
 	var data []Data
 	var xMax int
 	var index int = 1
+	osSig := make(chan os.Signal, 1)
+	done := make(chan bool, 1)
+	signal.Notify(osSig, os.Interrupt)
 	var slicer int64
 	var cfg configs
 	ch := make(chan Data)
-	sig := make(chan os.Signal)
-	signal.Notify(sig, os.Interrupt)
+
+	go func() {
+		<-osSig     // Blocking till interrupt signal is received
+		osSig = nil // ignore further signals
+		done <- true
+	}()
 
 	dev := flag.String("interface", "", "Choose an interface for online processing")
 	file := flag.String("file", "", "Choose a file for offline processing")
@@ -372,7 +379,7 @@ func main() {
 	packetSource := gopacket.NewPacketSource(handle, layers.LayerTypeEthernet)
 	packetSource.DecodeOptions = gopacket.Lazy
 
-	go handlePackets(packetSource, cfg.limit, ch, sig)
+	go handlePackets(packetSource, cfg.limit, ch, done)
 
 	switch cfg.stil {
 	case SOLDER:
