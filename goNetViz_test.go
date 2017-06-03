@@ -1,6 +1,9 @@
 package main
 
 import "testing"
+import (
+	"errors"
+)
 
 func TestGetBitsFromPacket(t *testing.T) {
 
@@ -27,4 +30,28 @@ func TestGetBitsFromPacket(t *testing.T) {
 			t.Errorf("Input: %d Expected: %d \t Got %d", test.packet, test.ret, res)
 		}
 	}
+}
+
+func TestCheckConfig(t *testing.T) {
+	tests := []struct {
+		cfg configs
+		ret error
+	}{
+		// Testing different output stiles
+		{configs{3, 0, 0, 0, TERMINAL}, nil},
+		{configs{3, 0, 0, 0, (TERMINAL | TIMESLIZES)}, errors.New("-timeslize and -terminal can't be combined")},
+		{configs{3, 0, 25, 0, TERMINAL}, errors.New("-timeslize and -terminal can't be combined")},
+		{configs{3, 0, 0, 0, TIMESLIZES}, nil},
+		{configs{3, 0, 0, 0, 0}, nil},
+	}
+
+	for i, test := range tests {
+		t.Logf("Testing %d. config\n", i)
+		res := checkConfig(test.cfg)
+		if res != nil {
+			// Todo: Compare Error messages
+			t.Logf("Expected: %s \t Got %s", test.ret, res)
+		}
+	}
+
 }
