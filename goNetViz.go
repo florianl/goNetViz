@@ -9,7 +9,6 @@ import (
 	"image"
 	"image/color"
 	"image/png"
-	"log"
 	"os"
 	"os/signal"
 	"strconv"
@@ -141,16 +140,17 @@ func createTimeVisualization(data []Data, xMax int, prefix string, ts uint, bits
 	filename += ".png"
 	f, err := os.Create(filename)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Errorf("%s", err)
+		return
 	}
 
 	if err := png.Encode(f, img); err != nil {
 		f.Close()
-		log.Fatal(err)
+		fmt.Errorf("%s", err)
 	}
 
 	if err := f.Close(); err != nil {
-		log.Fatal(err)
+		fmt.Errorf("%s", err)
 	}
 
 	return
@@ -185,16 +185,17 @@ func createFixedVisualization(data []Data, xMax int, prefix string, num int, bit
 	filename += ".png"
 	f, err := os.Create(filename)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Errorf("%s", err)
+		return
 	}
 
 	if err := png.Encode(f, img); err != nil {
 		f.Close()
-		log.Fatal(err)
+		fmt.Errorf("%s", err)
 	}
 
 	if err := f.Close(); err != nil {
-		log.Fatal(err)
+		fmt.Errorf("%s", err)
 	}
 
 	return
@@ -229,7 +230,7 @@ func handlePackets(ps *gopacket.PacketSource, num uint, ch chan<- Data, done <-c
 func availableInterfaces() {
 	devices, err := pcap.FindAllDevs()
 	if err != nil {
-		log.Fatal(err)
+		fmt.Errorf("%s", err)
 		os.Exit(1)
 	}
 
@@ -250,13 +251,13 @@ func initSource(dev, file *string) (handle *pcap.Handle, err error) {
 	if len(*dev) > 0 {
 		handle, err = pcap.OpenLive(*dev, 4096, true, pcap.BlockForever)
 		if err != nil {
-			log.Fatal(err)
+			fmt.Errorf("%s", err)
 			os.Exit(1)
 		}
 	} else if len(*file) > 0 {
 		handle, err = pcap.OpenOffline(*file)
 		if err != nil {
-			log.Fatal(err)
+			fmt.Errorf("%s", err)
 			os.Exit(1)
 		}
 	} else {
@@ -356,13 +357,13 @@ func main() {
 	}
 
 	if err = checkConfig(cfg); err != nil {
-		log.Fatal(err)
+		fmt.Errorf("%s", err)
 		os.Exit(1)
 	}
 
 	handle, err = initSource(dev, file)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Errorf("%s", err)
 		os.Exit(1)
 	}
 	defer handle.Close()
@@ -370,7 +371,7 @@ func main() {
 	if len(*filter) != 0 {
 		err = handle.SetBPFFilter(*filter)
 		if err != nil {
-			log.Fatal(err, "\tInvalid filter: ", *filter)
+			fmt.Errorf("%s\nInvalid Filter: %s", err, *filter)
 			os.Exit(1)
 		}
 	}
