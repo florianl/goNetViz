@@ -89,26 +89,23 @@ func createPixel(packet []byte, byteP, bitP *int, bpP uint) (c color.Color) {
 	return
 }
 
-func createTerminalVisualization(data []Data, bitsPerPixel uint) {
+func createTerminalVisualization(data Data, bitsPerPixel uint) {
 	var bitPos int
 	var bytePos int
 	var packetLen int
 
-	for i := range data {
-		packetLen = len(data[i].payload)
-		bitPos = 0
-		bytePos = 0
-		for {
-			c := createPixel(data[i].payload, &bytePos, &bitPos, bitsPerPixel)
-			r, g, b, _ := c.RGBA()
-			fmt.Printf("\x1B[0m\x1B[38;2;%d;%d;%dm\u2588", uint8(r), uint8(g), uint8(b))
-			if bytePos >= packetLen {
-				break
-			}
+	packetLen = len(data.payload)
+	bitPos = 0
+	bytePos = 0
+	for {
+		c := createPixel(data.payload, &bytePos, &bitPos, bitsPerPixel)
+		r, g, b, _ := c.RGBA()
+		fmt.Printf("\x1B[0m\x1B[38;2;%d;%d;%dm\u2588", uint8(r), uint8(g), uint8(b))
+		if bytePos >= packetLen {
+			break
 		}
-		fmt.Printf("\x1B[m\n")
-
 	}
+	fmt.Printf("\x1B[m\n")
 
 }
 func createTimeVisualization(data []Data, xMax int, prefix string, ts uint, bitsPerPixel uint) {
@@ -400,9 +397,7 @@ func main() {
 		}
 	case TERMINAL:
 		for i, ok := <-ch; ok; i, ok = <-ch {
-			data = append(data, i)
-			createTerminalVisualization(data, cfg.bpP)
-			data = data[:0]
+			createTerminalVisualization(i, cfg.bpP)
 		}
 	case TIMESLIZES:
 		for i, ok := <-ch; ok; i, ok = <-ch {
@@ -428,8 +423,6 @@ func main() {
 		switch cfg.stil {
 		case SOLDER:
 			createFixedVisualization(data, xMax, *output, index, cfg.bpP)
-		case TERMINAL:
-			createTerminalVisualization(data, cfg.bpP)
 		case TIMESLIZES:
 			createTimeVisualization(data, xMax, *output, *ts, cfg.bpP)
 		}
