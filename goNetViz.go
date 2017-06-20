@@ -288,6 +288,14 @@ func checkConfig(cfg configs) error {
 	return nil
 }
 
+func init() {
+	if len(os.Args) < 2 {
+		fmt.Println(os.Args[0], "[-bits ...] [-count ...] [-file ... | -interface ...] [-filter ...] [-list_interfaces] [-help] [-prefix ...] [-size ... | -timeslize ... | -terminal] [-version]")
+		flag.PrintDefaults()
+		os.Exit(1)
+	}
+}
+
 func main() {
 	var err error
 	var handle *pcap.Handle
@@ -320,12 +328,6 @@ func main() {
 	bits := flag.Uint("bits", 24, "Number of bits per pixel.\n\tIt must be divisible by three and smaller than 25\n\tTo get black/white results, choose 1 as input.")
 	ts := flag.Uint("timeslize", 0, "Number of microseconds per resulting image.\n\tSo each pixel of the height of the resulting image represents one microsecond")
 	flag.Parse()
-
-	if flag.NFlag() < 1 {
-		fmt.Println(os.Args[0], "[-bits ...] [-count ...] [-file ... | -interface ...] [-filter ...] [-list_interfaces] [-help] [-prefix ...] [-size ... | -timeslize ... | -terminal] [-version]")
-		flag.PrintDefaults()
-		return
-	}
 
 	if *lst {
 		availableInterfaces()
