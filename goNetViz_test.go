@@ -48,9 +48,10 @@ func TestCheckConfig(t *testing.T) {
 	for i, test := range tests {
 		t.Logf("Testing %d. config\n", i)
 		res := checkConfig(test.cfg)
-		if res != nil {
-			// Todo: Compare Error messages
-			t.Logf("Expected: %s \t Got %s", test.ret, res)
+		if res != nil && test.ret != nil {
+			t.Log("Expected: ", test.ret, "\t Got: ", res)
+		} else if res != nil && test.ret == nil {
+			t.Errorf("Expected: %v \t Got: %v", test.ret, res)
 		}
 	}
 
