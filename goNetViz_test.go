@@ -54,5 +54,26 @@ func TestCheckConfig(t *testing.T) {
 			t.Errorf("Expected: %v \t Got: %v", test.ret, res)
 		}
 	}
+}
 
+func TestCreatePixel(t *testing.T) {
+	tests := []struct {
+		packet []byte
+		byteP  int
+		bitP   int
+		bpP    uint
+		red    uint8
+		green  uint8
+		blue   uint8
+	}{
+		{[]byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, 0, 0, 1, 255, 255, 255},
+		{[]byte{0x00, 0x00, 0x00, 0x00, 0x00}, 0, 0, 1, 0, 0, 0},
+	}
+	for _, test := range tests {
+		c := createPixel(test.packet, &(test.byteP), &(test.bitP), test.bpP)
+		r, g, b, _ := c.RGBA()
+		if uint8(r) != test.red || uint8(g) != test.green || uint8(b) != test.blue {
+			t.Errorf("Expected: ", test.red, test.green, test.blue, "\t Got: ", uint8(r), uint8(g), uint8(b))
+		}
+	}
 }
