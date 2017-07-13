@@ -201,7 +201,7 @@ func createFixedVisualization(data []Data, xMax int, prefix string, num int, bit
 	return
 }
 
-func handlePackets(ps *gopacket.PacketSource, num uint, ch chan<- Data, done <-chan bool) {
+func handlePackets(ps *gopacket.PacketSource, num uint, ch chan<- Data, done <-chan os.Signal) {
 	var count uint
 	for packet := range ps.Packets() {
 		var k Data
@@ -301,17 +301,10 @@ func main() {
 	var xMax int
 	var index int = 1
 	osSig := make(chan os.Signal, 1)
-	done := make(chan bool, 1)
 	signal.Notify(osSig, os.Interrupt)
 	var slicer int64
 	var cfg configs
 	ch := make(chan Data)
-
-	go func() {
-		<-osSig     // Blocking till interrupt signal is received
-		osSig = nil // ignore further signals
-		done <- true
-	}()
 
 	dev := flag.String("interface", "", "Choose an interface for online processing")
 	file := flag.String("file", "", "Choose a file for offline processing")
@@ -379,7 +372,7 @@ func main() {
 	packetSource := gopacket.NewPacketSource(handle, layers.LayerTypeEthernet)
 	packetSource.DecodeOptions = gopacket.Lazy
 
-	go handlePackets(packetSource, cfg.limit, ch, done)
+	go handlePackets(packetSource, cfg.limit, ch, osSig)
 
 	switch cfg.stil {
 	case SOLDER:
