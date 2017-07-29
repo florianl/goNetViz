@@ -97,9 +97,11 @@ func createTerminalVisualization(data Data, bitsPerPixel uint) {
 	bitPos = 0
 	bytePos = 0
 	for {
-		c := createPixel(data.payload, &bytePos, &bitPos, bitsPerPixel)
-		r, g, b, _ := c.RGBA()
-		fmt.Printf("\x1B[0m\x1B[38;2;%d;%d;%dm\u2588", uint8(r), uint8(g), uint8(b))
+		c1 := createPixel(data.payload, &bytePos, &bitPos, bitsPerPixel)
+		r1, g1, b1, _ := c1.RGBA()
+		c2 := createPixel(data.payload, &bytePos, &bitPos, bitsPerPixel)
+		r2, g2, b2, _ := c2.RGBA()
+		fmt.Printf("\x1B[38;2;%d;%d;%dm\x1B[48;2;%d;%d;%dm\u2580", uint8(r2), uint8(g2), uint8(b2), uint8(r1), uint8(g1), uint8(b1))
 		if bytePos >= packetLen {
 			break
 		}
