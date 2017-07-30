@@ -88,21 +88,34 @@ func createPixel(packet []byte, byteP, bitP *int, bpP uint) (c color.Color) {
 	return
 }
 
-func createTerminalVisualization(data Data, bitsPerPixel uint) {
-	var bitPos int
-	var bytePos int
-	var packetLen int
+func createTerminalVisualization(pkt1 Data, pkt2 Data, bitsPerPixel uint) {
+	var bitPos, cpyBitPos int
+	var bytePos, cpyBytePos int
+	var pkt1Len, pkt2Len int
 
-	packetLen = len(data.payload)
+	pkt1Len = len(pkt1.payload)
+	pkt2Len = len(pkt2.payload)
 	bitPos = 0
 	bytePos = 0
 	for {
-		c1 := createPixel(data.payload, &bytePos, &bitPos, bitsPerPixel)
-		r1, g1, b1, _ := c1.RGBA()
-		c2 := createPixel(data.payload, &bytePos, &bitPos, bitsPerPixel)
-		r2, g2, b2, _ := c2.RGBA()
-		fmt.Printf("\x1B[38;2;%d;%d;%dm\x1B[48;2;%d;%d;%dm\u2580", uint8(r2), uint8(g2), uint8(b2), uint8(r1), uint8(g1), uint8(b1))
-		if bytePos >= packetLen {
+		if bytePos >= pkt1Len {
+			c2 := createPixel(pkt2.payload, &bytePos, &bitPos, bitsPerPixel)
+			r2, g2, b2, _ := c2.RGBA()
+			fmt.Printf("\x1B[38;2;%d;%d;%dm\u2580", uint8(r2), uint8(g2), uint8(b2))
+		} else if bytePos >= pkt2Len {
+			c1 := createPixel(pkt1.payload, &bytePos, &bitPos, bitsPerPixel)
+			r1, g1, b1, _ := c1.RGBA()
+			fmt.Printf("\x1B[38;2;%d;%d;%dm\u2580", uint8(r1), uint8(g1), uint8(b1))
+		} else {
+			cpyBitPos = bitPos
+			cpyBytePos = bytePos
+			c1 := createPixel(pkt1.payload, &cpyBytePos, &cpyBitPos, bitsPerPixel)
+			r1, g1, b1, _ := c1.RGBA()
+			c2 := createPixel(pkt2.payload, &bytePos, &bitPos, bitsPerPixel)
+			r2, g2, b2, _ := c2.RGBA()
+			fmt.Printf("\x1B[48;2;%d;%d;%dm\x1B[38;2;%d;%d;%dm\u2580", uint8(r2), uint8(g2), uint8(b2), uint8(r1), uint8(g1), uint8(b1))
+		}
+		if bytePos >= pkt1Len && bytePos >= pkt2Len {
 			break
 		}
 	}
@@ -393,7 +406,14 @@ func main() {
 		}
 	case TERMINAL:
 		for i, ok := <-ch; ok; i, ok = <-ch {
-			createTerminalVisualization(i, cfg.bpP)
+			var j Data
+			j, ok = <-ch
+			if !ok {
+				createTerminalVisualization(i, Data{toa: 0, payload: nil}, cfg.bpP)
+				break
+			} else {
+				createTerminalVisualization(i, j, cfg.bpP)
+			}
 		}
 	case TIMESLIZES:
 		for i, ok := <-ch; ok; i, ok = <-ch {
