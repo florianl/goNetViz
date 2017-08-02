@@ -283,9 +283,9 @@ func initSource(dev, file *string) (handle *pcap.Handle, err error) {
 
 func checkConfig(cfg configs) error {
 	if cfg.bpP%3 != 0 && cfg.bpP != 1 {
-		return fmt.Errorf("%d must be divisible by three or should be one", cfg.bpP)
+		return fmt.Errorf("-bits %d is not divisible by three or one", cfg.bpP)
 	} else if cfg.bpP > 25 {
-		return fmt.Errorf("%d must be smaller than 25", cfg.bpP)
+		return fmt.Errorf("-bits %d must be smaller than 25", cfg.bpP)
 	}
 
 	if cfg.ts > 0 {
@@ -295,18 +295,9 @@ func checkConfig(cfg configs) error {
 	if cfg.stil == (TIMESLIZES | TERMINAL) {
 		return fmt.Errorf("-timeslize and -terminal can't be combined")
 	} else if cfg.stil == 0 {
-		// If way of stil is provided, we will stick to the default one
 		cfg.stil |= SOLDER
 	}
 	return nil
-}
-
-func init() {
-	if len(os.Args) < 2 {
-		fmt.Println(os.Args[0], "[-bits ...] [-count ...] [-file ... | -interface ...] [-filter ...] [-list_interfaces] [-help] [-prefix ...] [-size ... | -timeslize ... | -terminal] [-version]")
-		flag.PrintDefaults()
-		os.Exit(1)
-	}
 }
 
 func main() {
@@ -345,7 +336,7 @@ func main() {
 		return
 	}
 
-	if *help {
+	if *help || len(os.Args) < 2 {
 		fmt.Println(os.Args[0], "[-bits ...] [-count ...] [-file ... | -interface ...] [-filter ...] [-list_interfaces] [-help] [-prefix ...] [-size ... | -timeslize ... | -terminal] [-version]")
 		flag.PrintDefaults()
 		return
@@ -360,18 +351,15 @@ func main() {
 	if *terminalOut == true {
 		cfg.stil |= TERMINAL
 	}
-	if *ts != 0 {
-		cfg.stil |= TIMESLIZES
-	}
 
 	if err = checkConfig(cfg); err != nil {
-		fmt.Errorf("%s", err)
+		fmt.Println("Configuration error:", err)
 		os.Exit(1)
 	}
 
 	handle, err = initSource(dev, file)
 	if err != nil {
-		fmt.Errorf("%s", err)
+		fmt.Println("Could not open source:", err)
 		os.Exit(1)
 	}
 	defer handle.Close()
