@@ -262,7 +262,7 @@ func availableInterfaces() {
 	}
 }
 
-func initSource(dev, file *string) (handle *pcap.Handle, err error) {
+func initSource(dev, file *string, filter *string) (handle *pcap.Handle, err error) {
 	if len(*dev) > 0 {
 		handle, err = pcap.OpenLive(*dev, 4096, true, pcap.BlockForever)
 		if err != nil {
@@ -278,6 +278,15 @@ func initSource(dev, file *string) (handle *pcap.Handle, err error) {
 	} else {
 		return nil, fmt.Errorf("Source is missing\n")
 	}
+
+	if len(*filter) != 0 {
+		err = handle.SetBPFFilter(*filter)
+		if err != nil {
+			fmt.Errorf("%s\nInvalid Filter: %s", err, *filter)
+			os.Exit(1)
+		}
+	}
+
 	return
 }
 
@@ -357,20 +366,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	handle, err = initSource(dev, file)
+	handle, err = initSource(dev, file, filter)
 	if err != nil {
 		fmt.Println("Could not open source:", err)
 		os.Exit(1)
 	}
 	defer handle.Close()
-
-	if len(*filter) != 0 {
-		err = handle.SetBPFFilter(*filter)
-		if err != nil {
-			fmt.Errorf("%s\nInvalid Filter: %s", err, *filter)
-			os.Exit(1)
-		}
-	}
 
 	packetSource := gopacket.NewPacketSource(handle, layers.LayerTypeEthernet)
 	packetSource.DecodeOptions = gopacket.Lazy
