@@ -1,9 +1,6 @@
 package main
 
 import "testing"
-import (
-	"errors"
-)
 
 func TestGetBitsFromPacket(t *testing.T) {
 
@@ -34,30 +31,31 @@ func TestGetBitsFromPacket(t *testing.T) {
 
 func TestCheckConfig(t *testing.T) {
 	tests := []struct {
-		cfg configs
-		ret error
+		name string
+		cfg  configs
+		err  string
 	}{
 		// Testing different output stiles
-		{configs{3, 0, 0, 0, TERMINAL}, nil},
-		{configs{3, 0, 0, 0, (TERMINAL | TIMESLIZES)}, errors.New("-timeslize and -terminal can't be combined")},
-		{configs{3, 0, 25, 0, TERMINAL}, errors.New("-timeslize and -terminal can't be combined")},
-		{configs{3, 0, 0, 0, TIMESLIZES}, nil},
-		{configs{3, 0, 0, 0, 0}, nil},
+		{name: "Terminal only", cfg: configs{3, 0, 0, 0, TERMINAL}},
+		{name: "Terminal and Timeslize", cfg: configs{3, 0, 0, 0, (TERMINAL | TIMESLIZES)}, err: "-timeslize and -terminal can't be combined"},
 	}
 
-	for i, test := range tests {
-		t.Logf("Testing %d. config\n", i)
-		res := checkConfig(test.cfg)
-		if res != nil && test.ret != nil {
-			t.Log("Expected: ", test.ret, "\t Got: ", res)
-		} else if res != nil && test.ret == nil {
-			t.Errorf("Expected: %v \t Got: %v", test.ret, res)
-		}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			res := checkConfig(tc.cfg)
+
+			if tc.err != "" {
+				if res.Error() != tc.err {
+					t.Errorf("Expected: %v \t Got: %v", tc.err, res)
+				}
+			}
+		})
 	}
 }
 
 func TestCreatePixel(t *testing.T) {
 	tests := []struct {
+		name   string
 		packet []byte
 		byteP  int
 		bitP   int
@@ -66,14 +64,16 @@ func TestCreatePixel(t *testing.T) {
 		green  uint8
 		blue   uint8
 	}{
-		{[]byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, 0, 0, 1, 255, 255, 255},
-		{[]byte{0x00, 0x00, 0x00, 0x00, 0x00}, 0, 0, 1, 0, 0, 0},
+		{"White", []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, 0, 0, 1, 255, 255, 255},
+		{"Black", []byte{0x00, 0x00, 0x00, 0x00, 0x00}, 0, 0, 1, 0, 0, 0},
 	}
-	for _, test := range tests {
-		c := createPixel(test.packet, &(test.byteP), &(test.bitP), test.bpP)
-		r, g, b, _ := c.RGBA()
-		if uint8(r) != test.red || uint8(g) != test.green || uint8(b) != test.blue {
-			t.Errorf("Expected: ", test.red, test.green, test.blue, "\t Got: ", uint8(r), uint8(g), uint8(b))
-		}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			c := createPixel(tc.packet, &(tc.byteP), &(tc.bitP), tc.bpP)
+			r, g, b, _ := c.RGBA()
+			if uint8(r) != tc.red || uint8(g) != tc.green || uint8(b) != tc.blue {
+				t.Errorf("Expected: ", tc.red, tc.green, tc.blue, "\t Got: ", uint8(r), uint8(g), uint8(b))
+			}
+		})
 	}
 }
