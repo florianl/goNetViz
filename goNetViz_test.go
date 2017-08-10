@@ -69,8 +69,9 @@ func TestCreatePixel(t *testing.T) {
 		green  uint8
 		blue   uint8
 	}{
-		{"White", []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, 0, 0, 1, 255, 255, 255},
-		{"Black", []byte{0x00, 0x00, 0x00, 0x00, 0x00}, 0, 0, 1, 0, 0, 0},
+		{"White", []byte{0xFF, 0xFF}, 0, 0, 1, 255, 255, 255},
+		{"Black", []byte{0x00, 0x00}, 0, 0, 1, 0, 0, 0},
+		{"Royal Blue", []byte{0x41, 0x69, 0xE1, 0x41, 0x69, 0xE1}, 0, 0, 24, 65, 105, 225},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
