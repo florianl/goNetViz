@@ -36,8 +36,13 @@ func TestCheckConfig(t *testing.T) {
 		err  string
 	}{
 		// Testing different output stiles
+		{name: "Two Bits per Pixel", cfg: configs{2, 0, 0, 0, TERMINAL}, err: "-bits 2 is not divisible by three or one"},
+		{name: "One Bit per Pixel", cfg: configs{1, 0, 0, 0, TERMINAL}},
+		{name: "27 Bits per Pixel", cfg: configs{27, 0, 0, 0, TERMINAL}, err: "-bits 27 must be smaller than 25"},
 		{name: "Terminal only", cfg: configs{3, 0, 0, 0, TERMINAL}},
 		{name: "Terminal and Timeslize", cfg: configs{3, 0, 0, 0, (TERMINAL | TIMESLIZES)}, err: "-timeslize and -terminal can't be combined"},
+		{name: "Fixed Slize", cfg: configs{1, 0, 0, 0, 0}},
+		{name: "Time Slize", cfg: configs{1, 0, 50, 0, 0}},
 	}
 
 	for _, tc := range tests {
