@@ -7,25 +7,27 @@ func TestGetBitsFromPacket(t *testing.T) {
 	var bytePos int
 	var bitPos int
 	tests := []struct {
+		name   string
 		packet []byte
 		bpP    uint
 		ret    uint8
 	}{
-		{[]byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, 24, 255},
-		{[]byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, 12, 240},
-		{[]byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, 9, 14},
-		{[]byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, 3, 1},
-		{[]byte{0x00, 0x00, 0x00, 0x00, 0x00}, 24, 0},
-		{[]byte{0x00, 0x00, 0x00, 0x00, 0x00}, 12, 0},
-		{[]byte{0x00, 0x00, 0x00, 0x00, 0x00}, 9, 0},
-		{[]byte{0x00, 0x00, 0x00, 0x00, 0x00}, 3, 0},
+		{"24 Bits", []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, 24, 255},
+		{"12 Bits", []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, 12, 240},
+		{"9 Bits", []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, 9, 14},
+		{"3 Bits", []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, 3, 1},
 	}
 
-	for _, test := range tests {
-		res := getBitsFromPacket(test.packet, &bytePos, &bitPos, test.bpP)
-		if res != test.ret {
-			t.Errorf("Input: %d Expected: %d \t Got %d", test.packet, test.ret, res)
-		}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Reset position, as the stream of provided bits is limited
+			bytePos = 0
+			bitPos = 0
+			res := getBitsFromPacket(tc.packet, &bytePos, &bitPos, tc.bpP)
+			if res != tc.ret {
+				t.Errorf("Input: %d Expected: %d \t Got %d", tc.packet, tc.ret, res)
+			}
+		})
 	}
 }
 
