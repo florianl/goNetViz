@@ -122,7 +122,7 @@ func createTerminalVisualization(pkt1 Data, pkt2 Data, bitsPerPixel uint) {
 	fmt.Printf("\x1B[m\n")
 
 }
-func createTimeVisualization(data []Data, xMax int, prefix string, ts uint, bitsPerPixel uint) {
+func createTimeVisualization(data []Data, xMax int, prefix string, ts uint, bitsPerPixel uint) error {
 	var xPos int
 	var bitPos int
 	var bytePos int
@@ -155,23 +155,22 @@ func createTimeVisualization(data []Data, xMax int, prefix string, ts uint, bits
 	filename += ".png"
 	f, err := os.Create(filename)
 	if err != nil {
-		fmt.Errorf("%s", err)
-		return
+		return fmt.Errorf("%s", err)
 	}
 
 	if err := png.Encode(f, img); err != nil {
 		f.Close()
-		fmt.Errorf("%s", err)
+		return fmt.Errorf("%s", err)
 	}
 
 	if err := f.Close(); err != nil {
-		fmt.Errorf("%s", err)
+		return fmt.Errorf("%s", err)
 	}
 
-	return
+	return nil
 }
 
-func createFixedVisualization(data []Data, xMax int, prefix string, num int, bitsPerPixel uint) {
+func createFixedVisualization(data []Data, xMax int, prefix string, num int, bitsPerPixel uint) error {
 	var xPos int
 	var bitPos int
 	var bytePos int
@@ -200,20 +199,19 @@ func createFixedVisualization(data []Data, xMax int, prefix string, num int, bit
 	filename += ".png"
 	f, err := os.Create(filename)
 	if err != nil {
-		fmt.Errorf("%s", err)
-		return
+		return fmt.Errorf("%s", err)
 	}
 
 	if err := png.Encode(f, img); err != nil {
 		f.Close()
-		fmt.Errorf("%s", err)
+		return fmt.Errorf("%s", err)
 	}
 
 	if err := f.Close(); err != nil {
-		fmt.Errorf("%s", err)
+		return fmt.Errorf("%s", err)
 	}
 
-	return
+	return nil
 }
 
 func handlePackets(ps *gopacket.PacketSource, num uint, ch chan<- Data, done <-chan os.Signal) {
@@ -242,11 +240,10 @@ func handlePackets(ps *gopacket.PacketSource, num uint, ch chan<- Data, done <-c
 	return
 }
 
-func availableInterfaces() {
+func availableInterfaces() error {
 	devices, err := pcap.FindAllDevs()
 	if err != nil {
-		fmt.Errorf("%s", err)
-		os.Exit(1)
+		return fmt.Errorf("%s", err)
 	}
 
 	for _, device := range devices {
@@ -260,20 +257,19 @@ func availableInterfaces() {
 		}
 		fmt.Println("")
 	}
+	return nil
 }
 
 func initSource(dev, file *string, filter *string) (handle *pcap.Handle, err error) {
 	if len(*dev) > 0 {
 		handle, err = pcap.OpenLive(*dev, 4096, true, pcap.BlockForever)
 		if err != nil {
-			fmt.Errorf("%s", err)
-			os.Exit(1)
+			return nil, fmt.Errorf("%s", err)
 		}
 	} else if len(*file) > 0 {
 		handle, err = pcap.OpenOffline(*file)
 		if err != nil {
-			fmt.Errorf("%s", err)
-			os.Exit(1)
+			return nil, fmt.Errorf("%s", err)
 		}
 	} else {
 		return nil, fmt.Errorf("Source is missing\n")
@@ -282,8 +278,7 @@ func initSource(dev, file *string, filter *string) (handle *pcap.Handle, err err
 	if len(*filter) != 0 {
 		err = handle.SetBPFFilter(*filter)
 		if err != nil {
-			fmt.Errorf("%s\nInvalid Filter: %s", err, *filter)
-			os.Exit(1)
+			return nil, fmt.Errorf("%s\nInvalid Filter: %s", err, *filter)
 		}
 	}
 
@@ -336,7 +331,10 @@ func main() {
 	flag.Parse()
 
 	if *lst {
-		availableInterfaces()
+		err= availableInterfaces()
+		if err != nil {
+			fmt.Println("Could not list interfaces:", err)
+		}
 		return
 	}
 
@@ -363,13 +361,13 @@ func main() {
 
 	if err = checkConfig(cfg); err != nil {
 		fmt.Println("Configuration error:", err)
-		os.Exit(1)
+		return
 	}
 
 	handle, err = initSource(dev, file, filter)
 	if err != nil {
 		fmt.Println("Could not open source:", err)
-		os.Exit(1)
+		return
 	}
 	defer handle.Close()
 
