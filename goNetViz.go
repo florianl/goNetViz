@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"github.com/google/gopacket"
@@ -9,6 +10,7 @@ import (
 	"image"
 	"image/color"
 	"image/png"
+	"io/ioutil"
 	"os"
 	"os/signal"
 	"strconv"
@@ -19,6 +21,13 @@ const (
 	SOLDER     = 0x01
 	TERMINAL   = 0x02
 	TIMESLIZES = 0x04
+)
+
+const (
+	SVG_START = `<?xml version="1.0"?>
+<svg width="100\%" height="100\%">
+`
+	SVG_END = `</svg>`
 )
 
 // Version number of this tool
@@ -176,7 +185,8 @@ func createFixedVisualization(data []Data, xMax int, prefix string, num int, bit
 	var bytePos int
 	var packetLen int
 
-	img := image.NewNRGBA(image.Rect(0, 0, (xMax*8)/int(bitsPerPixel)+1, len(data)))
+	var svg bytes.Buffer
+	fmt.Fprintf(&svg, SVG_START)
 
 	for yPos := range data {
 		packetLen = len(data[yPos].payload)
@@ -185,7 +195,8 @@ func createFixedVisualization(data []Data, xMax int, prefix string, num int, bit
 		bytePos = 0
 		for {
 			c := createPixel(data[yPos].payload, &bytePos, &bitPos, bitsPerPixel)
-			img.Set(xPos, yPos, c)
+			r, g, b, _ := c.RGBA()
+			fmt.Fprintf(&svg, "<rect x=\"%d\" y=\"%d\" width=\"1\" height=\"1\" style=\"fill:rgb(%d,%d,%d)\" />\n", xPos, yPos, uint8(r), uint8(g), uint8(b))
 			xPos++
 			if bytePos >= packetLen {
 				break
@@ -194,21 +205,15 @@ func createFixedVisualization(data []Data, xMax int, prefix string, num int, bit
 
 	}
 
+	fmt.Fprintf(&svg, SVG_END)
+
 	filename := prefix
 	filename += strconv.Itoa(num)
-	filename += ".png"
-	f, err := os.Create(filename)
+	filename += ".svg"
+
+	err := ioutil.WriteFile(filename, svg.Bytes(), 0644)
 	if err != nil {
-		return fmt.Errorf("%s", err)
-	}
-
-	if err := png.Encode(f, img); err != nil {
-		f.Close()
-		return fmt.Errorf("%s", err)
-	}
-
-	if err := f.Close(); err != nil {
-		return fmt.Errorf("%s", err)
+		return fmt.Errorf("Could not create svg: %s", err)
 	}
 
 	return nil
