@@ -331,7 +331,7 @@ func main() {
 	flag.Parse()
 
 	if *lst {
-		err= availableInterfaces()
+		err = availableInterfaces()
 		if err != nil {
 			fmt.Println("Could not list interfaces:", err)
 		}
