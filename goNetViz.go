@@ -306,7 +306,7 @@ func initSource(dev, file *string, filter *string) (handle *pcap.Handle, err err
 	return
 }
 
-func checkConfig(cfg configs) error {
+func checkConfig(cfg *configs) error {
 	if cfg.bpP%3 != 0 && cfg.bpP != 1 {
 		return fmt.Errorf("-bits %d is not divisible by three or one", cfg.bpP)
 	} else if cfg.bpP > 25 {
@@ -380,7 +380,7 @@ func main() {
 		cfg.stil |= TERMINAL
 	}
 
-	if err = checkConfig(cfg); err != nil {
+	if err = checkConfig(&cfg); err != nil {
 		fmt.Println("Configuration error:", err)
 		return
 	}
@@ -404,7 +404,7 @@ func main() {
 			if xMax < len(i.payload) {
 				xMax = len(i.payload)
 			}
-			if len(data) >= int(*size) {
+			if len(data) >= int(cfg.ppI) {
 				xMax++
 				createFixedVisualization(data, xMax, *output, index, cfg.bpP)
 				xMax = 0
