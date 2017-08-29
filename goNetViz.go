@@ -7,10 +7,7 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
-	"image"
 	"image/color"
-	"image/png"
-	"io/ioutil"
 	"os"
 	"os/signal"
 	"strconv"
@@ -21,13 +18,6 @@ const (
 	SOLDER     = 0x01
 	TERMINAL   = 0x02
 	TIMESLIZES = 0x04
-)
-
-const (
-	SVG_START = `<?xml version="1.0"?>
-<svg width="100\%" height="100\%">
-`
-	SVG_END = `</svg>`
 )
 
 // Version number of this tool
@@ -132,13 +122,12 @@ func createTerminalVisualization(pkt1 Data, pkt2 Data, bitsPerPixel uint) {
 
 }
 func createTimeVisualization(data []Data, xMax int, prefix string, ts uint, bitsPerPixel uint) error {
-	var xPos int
+	var xPos, yPos int
 	var bitPos int
 	var bytePos int
 	var packetLen int
 	var firstPkg time.Time
-
-	img := image.NewNRGBA(image.Rect(0, 0, (xMax*8)/int(bitsPerPixel)+1, int(ts)))
+	var svg bytes.Buffer
 
 	for pkg := range data {
 		if firstPkg.IsZero() {
@@ -150,7 +139,8 @@ func createTimeVisualization(data []Data, xMax int, prefix string, ts uint, bits
 		bytePos = 0
 		for {
 			c := createPixel(data[pkg].payload, &bytePos, &bitPos, bitsPerPixel)
-			img.Set(xPos, int(data[pkg].toa%int64(ts)), c)
+			r, g, b, _ := c.RGBA()
+			fmt.Fprintf(&svg, "<rect x=\"%d\" y=\"%d\" width=\"1\" height=\"1\" style=\"fill:rgb(%d,%d,%d)\" />\n", xPos, yPos, uint8(r), uint8(g), uint8(b))
 			xPos++
 			if bytePos >= packetLen {
 				break
@@ -161,34 +151,43 @@ func createTimeVisualization(data []Data, xMax int, prefix string, ts uint, bits
 	filename := prefix
 	filename += "-"
 	filename += firstPkg.Format(time.RFC3339Nano)
-	filename += ".png"
-	f, err := os.Create(filename)
+	filename += ".svg"
+
+	f, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
-		return fmt.Errorf("%s", err)
+		return fmt.Errorf("Could not open image: %s", err)
 	}
 
-	if err := png.Encode(f, img); err != nil {
+	if _, err := f.WriteString(fmt.Sprintf("<?xml version=\"1.0\"?>\n<svg width=\"%d\" height=\"%d\">\n", (xMax*8)/int(bitsPerPixel)+1, yPos+1)); err != nil {
 		f.Close()
-		return fmt.Errorf("%s", err)
+		return fmt.Errorf("Could not write image: %s", err)
+	}
+
+	if _, err := f.WriteString(svg.String()); err != nil {
+		f.Close()
+		return fmt.Errorf("Could not write image: %s", err)
+	}
+
+	if _, err := f.WriteString("</svg>"); err != nil {
+		f.Close()
+		return fmt.Errorf("Could not write image: %s", err)
 	}
 
 	if err := f.Close(); err != nil {
-		return fmt.Errorf("%s", err)
+		return fmt.Errorf("Could not close image: %s", err)
 	}
 
 	return nil
 }
 
 func createFixedVisualization(data []Data, xMax int, prefix string, num int, bitsPerPixel uint) error {
-	var xPos int
+	var xPos, yPos int
 	var bitPos int
 	var bytePos int
 	var packetLen int
-
 	var svg bytes.Buffer
-	fmt.Fprintf(&svg, SVG_START)
 
-	for yPos := range data {
+	for yPos = range data {
 		packetLen = len(data[yPos].payload)
 		xPos = 0
 		bitPos = 0
@@ -205,15 +204,32 @@ func createFixedVisualization(data []Data, xMax int, prefix string, num int, bit
 
 	}
 
-	fmt.Fprintf(&svg, SVG_END)
-
 	filename := prefix
 	filename += strconv.Itoa(num)
 	filename += ".svg"
 
-	err := ioutil.WriteFile(filename, svg.Bytes(), 0644)
+	f, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
-		return fmt.Errorf("Could not create svg: %s", err)
+		return fmt.Errorf("Could not open image: %s", err)
+	}
+
+	if _, err := f.WriteString(fmt.Sprintf("<?xml version=\"1.0\"?>\n<svg width=\"%d\" height=\"%d\">\n", (xMax*8)/int(bitsPerPixel)+1, yPos+1)); err != nil {
+		f.Close()
+		return fmt.Errorf("Could not write image: %s", err)
+	}
+
+	if _, err := f.WriteString(svg.String()); err != nil {
+		f.Close()
+		return fmt.Errorf("Could not write image: %s", err)
+	}
+
+	if _, err := f.WriteString("</svg>"); err != nil {
+		f.Close()
+		return fmt.Errorf("Could not write image: %s", err)
+	}
+
+	if err := f.Close(); err != nil {
+		return fmt.Errorf("Could not close image: %s", err)
 	}
 
 	return nil
