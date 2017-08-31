@@ -7,7 +7,6 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
-	"image/color"
 	"os"
 	"os/signal"
 	"strconv"
@@ -54,20 +53,14 @@ func getBitsFromPacket(packet []byte, byteP, bitP *int, bpP uint) uint8 {
 	return c
 }
 
-func createPixel(packet []byte, byteP, bitP *int, bpP uint) (c color.Color) {
+func createPixel(packet []byte, byteP, bitP *int, bpP uint) (uint8, uint8, uint8) {
 	var r, g, b uint8
 
 	if bpP == 1 {
 		if (packet[*byteP] & (1 << uint8(7-*bitP))) == 0 {
-			c = color.NRGBA{R: 0,
-				G: 0,
-				B: 0,
-				A: 255}
+			return 0,0,0
 		} else {
-			c = color.NRGBA{R: 255,
-				G: 255,
-				B: 255,
-				A: 255}
+			return 255,255,255
 		}
 		*bitP += 1
 		if *bitP%8 == 0 {
@@ -78,13 +71,9 @@ func createPixel(packet []byte, byteP, bitP *int, bpP uint) (c color.Color) {
 		r = getBitsFromPacket(packet, byteP, bitP, bpP)
 		g = getBitsFromPacket(packet, byteP, bitP, bpP)
 		b = getBitsFromPacket(packet, byteP, bitP, bpP)
-
-		c = color.NRGBA{R: r,
-			G: g,
-			B: b,
-			A: 255}
 	}
-	return
+
+	return r,g,b
 }
 
 func createTerminalVisualization(pkt1 Data, pkt2 Data, bitsPerPixel uint) {
@@ -98,20 +87,16 @@ func createTerminalVisualization(pkt1 Data, pkt2 Data, bitsPerPixel uint) {
 	bytePos = 0
 	for {
 		if bytePos >= pkt1Len {
-			c2 := createPixel(pkt2.payload, &bytePos, &bitPos, bitsPerPixel)
-			r2, g2, b2, _ := c2.RGBA()
+			r2, g2, b2 := createPixel(pkt2.payload, &bytePos, &bitPos, bitsPerPixel)
 			fmt.Printf("\x1B[38;2;%d;%d;%dm\u2580", uint8(r2), uint8(g2), uint8(b2))
 		} else if bytePos >= pkt2Len {
-			c1 := createPixel(pkt1.payload, &bytePos, &bitPos, bitsPerPixel)
-			r1, g1, b1, _ := c1.RGBA()
+			r1, g1, b1 := createPixel(pkt1.payload, &bytePos, &bitPos, bitsPerPixel)
 			fmt.Printf("\x1B[38;2;%d;%d;%dm\u2580", uint8(r1), uint8(g1), uint8(b1))
 		} else {
 			cpyBitPos = bitPos
 			cpyBytePos = bytePos
-			c1 := createPixel(pkt1.payload, &cpyBytePos, &cpyBitPos, bitsPerPixel)
-			r1, g1, b1, _ := c1.RGBA()
-			c2 := createPixel(pkt2.payload, &bytePos, &bitPos, bitsPerPixel)
-			r2, g2, b2, _ := c2.RGBA()
+			r1, g1, b1 := createPixel(pkt1.payload, &cpyBytePos, &cpyBitPos, bitsPerPixel)
+			r2, g2, b2 := createPixel(pkt2.payload, &bytePos, &bitPos, bitsPerPixel)
 			fmt.Printf("\x1B[48;2;%d;%d;%dm\x1B[38;2;%d;%d;%dm\u2580", uint8(r2), uint8(g2), uint8(b2), uint8(r1), uint8(g1), uint8(b1))
 		}
 		if bytePos >= pkt1Len && bytePos >= pkt2Len {
@@ -167,8 +152,7 @@ func createTimeVisualization(data []Data, xMax int, prefix string, ts uint, bits
 		bitPos = 0
 		bytePos = 0
 		for {
-			c := createPixel(data[pkg].payload, &bytePos, &bitPos, bitsPerPixel)
-			r, g, b, _ := c.RGBA()
+			r, g, b := createPixel(data[pkg].payload, &bytePos, &bitPos, bitsPerPixel)
 			fmt.Fprintf(&svg, "<rect x=\"%d\" y=\"%d\" width=\"1\" height=\"1\" style=\"fill:rgb(%d,%d,%d)\" />\n", xPos, yPos, uint8(r), uint8(g), uint8(b))
 			xPos++
 			if bytePos >= packetLen {
@@ -199,8 +183,7 @@ func createFixedVisualization(data []Data, xMax int, prefix string, num int, bit
 		bitPos = 0
 		bytePos = 0
 		for {
-			c := createPixel(data[yPos].payload, &bytePos, &bitPos, bitsPerPixel)
-			r, g, b, _ := c.RGBA()
+			r, g, b := createPixel(data[yPos].payload, &bytePos, &bitPos, bitsPerPixel)
 			fmt.Fprintf(&svg, "<rect x=\"%d\" y=\"%d\" width=\"1\" height=\"1\" style=\"fill:rgb(%d,%d,%d)\" />\n", xPos, yPos, uint8(r), uint8(g), uint8(b))
 			xPos++
 			if bytePos >= packetLen {

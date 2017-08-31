@@ -81,8 +81,7 @@ func TestCreatePixel(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			c := createPixel(tc.packet, &(tc.byteP), &(tc.bitP), tc.bpP)
-			r, g, b, _ := c.RGBA()
+			r, g, b := createPixel(tc.packet, &(tc.byteP), &(tc.bitP), tc.bpP)
 			if uint8(r) != tc.red || uint8(g) != tc.green || uint8(b) != tc.blue {
 				t.Errorf("Expected: r%dg%db%d\t Got: r%dg%db%d", tc.red, tc.green, tc.blue,uint8(r), uint8(g), uint8(b))
 			}
