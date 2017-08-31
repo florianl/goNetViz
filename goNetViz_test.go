@@ -53,7 +53,7 @@ func TestCheckConfig(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			res := checkConfig(tc.cfg)
+			res := checkConfig(&tc.cfg)
 
 			if tc.err != "" {
 				if res.Error() != tc.err {
