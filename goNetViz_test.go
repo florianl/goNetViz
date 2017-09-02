@@ -88,3 +88,27 @@ func TestCreatePixel(t *testing.T) {
 		})
 	}
 }
+
+func TestInitSource(t *testing.T) {
+	tests := []struct {
+		name	string
+		dev	string
+		file	string
+		filter	*string
+		err	string
+	}{
+		{name: "No Source", dev: "", file: "", filter: nil, err: "Source is missing\n"},
+		{name: "Invalid File", dev: "", file: "/invalid/file", filter: nil, err: "/invalid/file: No such file or directory"},
+		{name: "Non existing Device", dev: "/dev/InvalidDevice", file: "", filter: nil, err: "/dev/InvalidDevice: No such device exists (No such device exists)"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := initSource(&(tc.dev), &(tc.file), tc.filter)
+			if err.Error() != tc.err {
+					t.Errorf("Expected: %v \t Got: %v", tc.err, err)
+			}
+		})
+	}
+
+}
