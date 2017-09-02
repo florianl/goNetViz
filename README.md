@@ -46,9 +46,9 @@ Building
           [...]
         $ cd goNetViz/
         $ export GOPATH=$HOME/go
-        $ go get github.com/google/gopacket
+        $ go get -u github.com/google/gopacket
           [...]
-        $ go build main.go
+        $ go build
           [...]
         $ ./goNetViz
           [...]
@@ -56,7 +56,7 @@ Building
 Or you can get it directly via [golang](https://golang.org/):
 
         $ export GOPATH=$HOME/go
-        $ go get github.com/florianl/goNetViz
+        $ go get -u github.com/florianl/goNetViz
           [...]
         $ $GOPATH/bin/goNetViz
           [...]
