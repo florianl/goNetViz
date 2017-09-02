@@ -78,6 +78,8 @@ func TestCreatePixel(t *testing.T) {
 		{"White", []byte{0xFF, 0xFF}, 0, 0, 1, 255, 255, 255},
 		{"Black", []byte{0x00, 0x00}, 0, 0, 1, 0, 0, 0},
 		{"Royal Blue", []byte{0x41, 0x69, 0xE1, 0x41, 0x69, 0xE1}, 0, 0, 24, 65, 105, 225},
+		{"Byte Boundary", []byte{0xA5, 0xA5, 0xA5}, 0, 6, 24, 165, 165, 1},
+		{"Byte Boundary", []byte{0x5A, 0x5A, 0x5A, 0x5A, 0x5A, 0x5A}, 0, 6, 1, 255, 255, 255},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -111,4 +113,26 @@ func TestInitSource(t *testing.T) {
 		})
 	}
 
+}
+
+func TestCreateImage(t *testing.T){
+	tests := []struct {
+		name		string
+		filename	string
+		width		int
+		height		int
+		data		string
+		err		string
+	}{
+		{name: "No Filename", filename: "", err: "Could not open image: open : no such file or directory"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := createImage(tc.filename, tc.width, tc.height, tc.data)
+			if err.Error() != tc.err {
+					t.Errorf("Expected: %v \t Got: %v", tc.err, err)
+			}
+		})
+	}
 }
