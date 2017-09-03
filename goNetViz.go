@@ -58,9 +58,9 @@ func createPixel(packet []byte, byteP, bitP *int, bpP uint) (uint8, uint8, uint8
 
 	if bpP == 1 {
 		if (packet[*byteP] & (1 << uint8(7-*bitP))) == 0 {
-			return 0,0,0
+			return 0, 0, 0
 		} else {
-			return 255,255,255
+			return 255, 255, 255
 		}
 		*bitP += 1
 		if *bitP%8 == 0 {
@@ -73,7 +73,7 @@ func createPixel(packet []byte, byteP, bitP *int, bpP uint) (uint8, uint8, uint8
 		b = getBitsFromPacket(packet, byteP, bitP, bpP)
 	}
 
-	return r,g,b
+	return r, g, b
 }
 
 func createTerminalVisualization(pkt1 Data, pkt2 Data, bitsPerPixel uint) {
@@ -108,7 +108,11 @@ func createTerminalVisualization(pkt1 Data, pkt2 Data, bitsPerPixel uint) {
 }
 
 func createImage(filename string, width, height int, data string) error {
-		f, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0644)
+	if len(data) == 0 {
+		return fmt.Errorf("No image data provided")
+	}
+
+	f, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		return fmt.Errorf("Could not open image: %s", err)
 	}
@@ -165,7 +169,6 @@ func createTimeVisualization(data []Data, xMax int, prefix string, ts uint, bits
 	filename += "-"
 	filename += firstPkg.Format(time.RFC3339Nano)
 	filename += ".svg"
-
 
 	return createImage(filename, (xMax*8)/int(bitsPerPixel)+1, yPos+1, svg.String())
 }

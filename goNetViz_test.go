@@ -1,6 +1,9 @@
 package main
 
 import "testing"
+import "io/ioutil"
+import "os"
+import "fmt"
 
 func TestGetBitsFromPacket(t *testing.T) {
 
@@ -85,7 +88,7 @@ func TestCreatePixel(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			r, g, b := createPixel(tc.packet, &(tc.byteP), &(tc.bitP), tc.bpP)
 			if uint8(r) != tc.red || uint8(g) != tc.green || uint8(b) != tc.blue {
-				t.Errorf("Expected: r%dg%db%d\t Got: r%dg%db%d", tc.red, tc.green, tc.blue,uint8(r), uint8(g), uint8(b))
+				t.Errorf("Expected: r%dg%db%d\t Got: r%dg%db%d", tc.red, tc.green, tc.blue, uint8(r), uint8(g), uint8(b))
 			}
 		})
 	}
@@ -93,11 +96,11 @@ func TestCreatePixel(t *testing.T) {
 
 func TestInitSource(t *testing.T) {
 	tests := []struct {
-		name	string
-		dev	string
-		file	string
-		filter	*string
-		err	string
+		name   string
+		dev    string
+		file   string
+		filter *string
+		err    string
 	}{
 		{name: "No Source", dev: "", file: "", filter: nil, err: "Source is missing\n"},
 		{name: "Invalid File", dev: "", file: "/invalid/file", filter: nil, err: "/invalid/file: No such file or directory"},
@@ -108,30 +111,39 @@ func TestInitSource(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := initSource(&(tc.dev), &(tc.file), tc.filter)
 			if err.Error() != tc.err {
-					t.Errorf("Expected: %v \t Got: %v", tc.err, err)
+				t.Errorf("Expected: %v \t Got: %v", tc.err, err)
 			}
 		})
 	}
 
 }
 
-func TestCreateImage(t *testing.T){
+func TestCreateImage(t *testing.T) {
+
+	dir, err := ioutil.TempDir("", "TestCreateImage")
+	if err != nil {
+		t.Errorf("Could not create temporary directory: %v", err)
+	}
+
+	defer os.RemoveAll(dir)
 	tests := []struct {
-		name		string
-		filename	string
-		width		int
-		height		int
-		data		string
-		err		string
+		name     string
+		filename string
+		width    int
+		height   int
+		data     string
+		err      string
 	}{
-		{name: "No Filename", filename: "", err: "Could not open image: open : no such file or directory"},
+		{name: "No Filename", filename: "", data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />", err: "Could not open image: open : no such file or directory"},
+		{name: "Just directory name", filename: dir, data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />", err: fmt.Sprintf("Could not open image: open %s: is a directory", dir)},
+		{name: "No Data", filename: fmt.Sprintf("%s/%s", dir, "test.svg"), err: "No image data provided"},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			err := createImage(tc.filename, tc.width, tc.height, tc.data)
 			if err.Error() != tc.err {
-					t.Errorf("Expected: %v \t Got: %v", tc.err, err)
+				t.Errorf("Expected: %v \t Got: %v", tc.err, err)
 			}
 		})
 	}
