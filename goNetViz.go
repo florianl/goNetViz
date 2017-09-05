@@ -305,18 +305,18 @@ func main() {
 	var cfg configs
 	ch := make(chan Data)
 
-	dev := flag.String("interface", "", "Choose an interface for online processing")
-	file := flag.String("file", "", "Choose a file for offline processing")
-	filter := flag.String("filter", "", "Set a specific filter")
-	lst := flag.Bool("list_interfaces", false, "List available interfaces")
-	vers := flag.Bool("version", false, "Show version")
-	help := flag.Bool("help", false, "Show this help")
-	terminalOut := flag.Bool("terminal", false, "Visualize on terminal")
-	num := flag.Uint("count", 25, "Number of packets to process.\n\tIf argument is 0 the limit is removed")
-	output := flag.String("prefix", "image", "Prefix of the resulting image")
-	size := flag.Uint("size", 25, "Number of packets per image")
-	bits := flag.Uint("bits", 24, "Number of bits per pixel.\n\tIt must be divisible by three and smaller than 25\n\tTo get black/white results, choose 1 as input.")
-	ts := flag.Uint("timeslize", 0, "Number of microseconds per resulting image.\n\tSo each pixel of the height of the resulting image represents one microsecond")
+	dev := flag.String("interface", "", "Choose an interface for online processing.")
+	file := flag.String("file", "", "Choose a file for offline processing.")
+	filter := flag.String("filter", "", "Set a specific filter.")
+	lst := flag.Bool("list_interfaces", false, "List available interfaces.")
+	vers := flag.Bool("version", false, "Show version.")
+	help := flag.Bool("help", false, "Show this help.")
+	terminalOut := flag.Bool("terminal", false, "Visualize output on terminal.")
+	num := flag.Uint("count", 25, "Number of packets to process.\n\tIf argument is 0 the limit is removed.")
+	prefix := flag.String("prefix", "image", "Prefix of the resulting image.")
+	size := flag.Uint("size", 25, "Number of packets per image.")
+	bits := flag.Uint("bits", 24, "Number of bits per pixel. It must be divisible by three and smaller than 25 or 1.\n\tTo get black/white results, choose 1 as input.")
+	ts := flag.Uint("timeslize", 0, "Number of microseconds per resulting image.\n\tSo each pixel of the height of the resulting image represents one microsecond.")
 	flag.Parse()
 
 	if *lst {
@@ -374,7 +374,7 @@ func main() {
 			}
 			if len(data) >= int(cfg.ppI) {
 				xMax++
-				createFixedVisualization(data, xMax, *output, index, cfg.bpP)
+				createFixedVisualization(data, xMax, *prefix, index, cfg.bpP)
 				xMax = 0
 				index++
 				data = data[:0]
@@ -398,7 +398,7 @@ func main() {
 			}
 			if slicer < i.toa {
 				xMax++
-				createTimeVisualization(data, xMax, *output, *ts, cfg.bpP)
+				createTimeVisualization(data, xMax, *prefix, *ts, cfg.bpP)
 				xMax = 0
 				data = data[:0]
 				slicer = i.toa + int64(*ts)
@@ -414,9 +414,9 @@ func main() {
 		xMax++
 		switch cfg.stil {
 		case SOLDER:
-			createFixedVisualization(data, xMax, *output, index, cfg.bpP)
+			createFixedVisualization(data, xMax, *prefix, index, cfg.bpP)
 		case TIMESLIZES:
-			createTimeVisualization(data, xMax, *output, *ts, cfg.bpP)
+			createTimeVisualization(data, xMax, *prefix, *ts, cfg.bpP)
 		}
 	}
 

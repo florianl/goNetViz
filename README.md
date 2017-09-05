@@ -9,32 +9,33 @@ attaching to a network interface.
 
         $ ./goNetViz -help
           ./goNetViz [-bits ...] [-count ...] [-file ... | -interface ...] [-filter ...] [-list_interfaces] [-help] [-prefix ...] [-size ... | -timeslize ... | -terminal] [-version]
-
-          -bits uint
-                Number of bits per pixel.
-                It must be divisible by three and smaller than 25 (default 24)
+        -bits uint
+                Number of bits per pixel. It must be divisible by three and smaller than 25 or 1.
+                To get black/white results, choose 1 as input. (default 24)
         -count uint
                 Number of packets to process.
-                If argument is 0 the limit is removed (default 25)
+                If argument is 0 the limit is removed. (default 25)
         -file string
-                Choose a file for offline processing
+                Choose a file for offline processing.
         -filter string
-                Set a specific filter
+                Set a specific filter.
         -help
-                Show this help
+                Show this help.
         -interface string
-                Choose an interface for online processing
+                Choose an interface for online processing.
         -list_interfaces
-                List available interfaces
+                List available interfaces.
         -prefix string
-                Prefix of the resulting image (default "image")
+                Prefix of the resulting image. (default "image")
         -size uint
-                Number of packets per image (default 25)
+                Number of packets per image. (default 25)
+        -terminal
+                Visualize output on terminal.
         -timeslize uint
                 Number of microseconds per resulting image.
-                So each pixel of the height of the resulting image represents one microsecond
-        -terminal
-                Visualize on terminal
+                So each pixel of the height of the resulting image represents one microsecond.
+        -version
+                Show version.
         -version
                 Show version
 
