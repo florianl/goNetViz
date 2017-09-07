@@ -35,6 +35,7 @@ type configs struct {
 	ts    uint // "Duration" for one Image
 	limit uint // Number of network packets to process
 	stil  uint // Type of illustration
+	scale uint // Scaling factor for output
 }
 
 func getBitsFromPacket(packet []byte, byteP, bitP *int, bpP uint) uint8 {
@@ -139,13 +140,15 @@ func createImage(filename string, width, height int, data string) error {
 	return nil
 }
 
-func createTimeVisualization(data []Data, xMax int, prefix string, ts uint, bitsPerPixel uint) error {
+func createTimeVisualization(data []Data, xMax int, prefix string, ts uint, config configs) error {
 	var xPos, yPos int
 	var bitPos int
 	var bytePos int
 	var packetLen int
 	var firstPkg time.Time
 	var svg bytes.Buffer
+	var bitsPerPixel int = int(config.bpP)
+	var scale int = int(config.scale)
 
 	for pkg := range data {
 		if firstPkg.IsZero() {
@@ -156,8 +159,8 @@ func createTimeVisualization(data []Data, xMax int, prefix string, ts uint, bits
 		bitPos = 0
 		bytePos = 0
 		for {
-			r, g, b := createPixel(data[pkg].payload, &bytePos, &bitPos, bitsPerPixel)
-			fmt.Fprintf(&svg, "<rect x=\"%d\" y=\"%d\" width=\"1\" height=\"1\" style=\"fill:rgb(%d,%d,%d)\" />\n", xPos, yPos, uint8(r), uint8(g), uint8(b))
+			r, g, b := createPixel(data[pkg].payload, &bytePos, &bitPos, uint(bitsPerPixel))
+			fmt.Fprintf(&svg, "<rect x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\" style=\"fill:rgb(%d,%d,%d)\" />\n", xPos*scale, yPos*scale, scale, scale, uint8(r), uint8(g), uint8(b))
 			xPos++
 			if bytePos >= packetLen {
 				break
@@ -170,15 +173,17 @@ func createTimeVisualization(data []Data, xMax int, prefix string, ts uint, bits
 	filename += firstPkg.Format(time.RFC3339Nano)
 	filename += ".svg"
 
-	return createImage(filename, (xMax*8)/int(bitsPerPixel)+1, yPos+1, svg.String())
+	return createImage(filename, ((xMax*8)/int(bitsPerPixel)+1)*scale, (yPos+1)*scale, svg.String())
 }
 
-func createFixedVisualization(data []Data, xMax int, prefix string, num int, bitsPerPixel uint) error {
+func createFixedVisualization(data []Data, xMax int, prefix string, num int, config configs) error {
 	var xPos, yPos int
 	var bitPos int
 	var bytePos int
 	var packetLen int
 	var svg bytes.Buffer
+	var bitsPerPixel int = int(config.bpP)
+	var scale int = int(config.scale)
 
 	for yPos = range data {
 		packetLen = len(data[yPos].payload)
@@ -186,8 +191,8 @@ func createFixedVisualization(data []Data, xMax int, prefix string, num int, bit
 		bitPos = 0
 		bytePos = 0
 		for {
-			r, g, b := createPixel(data[yPos].payload, &bytePos, &bitPos, bitsPerPixel)
-			fmt.Fprintf(&svg, "<rect x=\"%d\" y=\"%d\" width=\"1\" height=\"1\" style=\"fill:rgb(%d,%d,%d)\" />\n", xPos, yPos, uint8(r), uint8(g), uint8(b))
+			r, g, b := createPixel(data[yPos].payload, &bytePos, &bitPos, uint(bitsPerPixel))
+			fmt.Fprintf(&svg, "<rect x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\" style=\"fill:rgb(%d,%d,%d)\" />\n", xPos*scale, yPos*scale, scale, scale, uint8(r), uint8(g), uint8(b))
 			xPos++
 			if bytePos >= packetLen {
 				break
@@ -200,7 +205,7 @@ func createFixedVisualization(data []Data, xMax int, prefix string, num int, bit
 	filename += strconv.Itoa(num)
 	filename += ".svg"
 
-	return createImage(filename, (xMax*8)/int(bitsPerPixel)+1, yPos+1, svg.String())
+	return createImage(filename, ((xMax*8)/bitsPerPixel+1)*scale, (yPos+1)*scale, svg.String())
 }
 
 func handlePackets(ps *gopacket.PacketSource, num uint, ch chan<- Data, done <-chan os.Signal) {
@@ -290,6 +295,15 @@ func checkConfig(cfg *configs) error {
 	} else if cfg.stil == 0 {
 		cfg.stil |= SOLDER
 	}
+
+	if cfg.stil == TERMINAL && cfg.scale != 1 {
+		return fmt.Errorf("-scale and -terminal can't be combined")
+	}
+
+	if cfg.scale == 0 {
+		return fmt.Errorf("scale factor has to be at least 1")
+	}
+
 	return nil
 }
 
@@ -317,6 +331,7 @@ func main() {
 	size := flag.Uint("size", 25, "Number of packets per image.")
 	bits := flag.Uint("bits", 24, "Number of bits per pixel. It must be divisible by three and smaller than 25 or 1.\n\tTo get black/white results, choose 1 as input.")
 	ts := flag.Uint("timeslize", 0, "Number of microseconds per resulting image.\n\tSo each pixel of the height of the resulting image represents one microsecond.")
+	scale := flag.Uint("scale", 1, "Scaling factor for output.\n\tWorks not for output on terminal.")
 	flag.Parse()
 
 	if *lst {
@@ -333,7 +348,7 @@ func main() {
 	}
 
 	if *help || len(os.Args) < 2 {
-		fmt.Println(os.Args[0], "[-bits ...] [-count ...] [-file ... | -interface ...] [-filter ...] [-list_interfaces] [-help] [-prefix ...] [-size ... | -timeslize ... | -terminal] [-version]")
+		fmt.Println(os.Args[0], "[-bits ...] [-count ...] [-file ... | -interface ...] [-filter ...] [-list_interfaces] [-help] [-prefix ...] [-scale ...] [-size ... | -timeslize ... | -terminal] [-version]")
 		flag.PrintDefaults()
 		return
 	}
@@ -343,6 +358,7 @@ func main() {
 	cfg.ts = *ts
 	cfg.limit = *num
 	cfg.stil = 0
+	cfg.scale = *scale
 
 	if *terminalOut == true {
 		cfg.stil |= TERMINAL
@@ -374,7 +390,7 @@ func main() {
 			}
 			if len(data) >= int(cfg.ppI) {
 				xMax++
-				createFixedVisualization(data, xMax, *prefix, index, cfg.bpP)
+				createFixedVisualization(data, xMax, *prefix, index, cfg)
 				xMax = 0
 				index++
 				data = data[:0]
@@ -398,7 +414,7 @@ func main() {
 			}
 			if slicer < i.toa {
 				xMax++
-				createTimeVisualization(data, xMax, *prefix, *ts, cfg.bpP)
+				createTimeVisualization(data, xMax, *prefix, *ts, cfg)
 				xMax = 0
 				data = data[:0]
 				slicer = i.toa + int64(*ts)
@@ -414,9 +430,9 @@ func main() {
 		xMax++
 		switch cfg.stil {
 		case SOLDER:
-			createFixedVisualization(data, xMax, *prefix, index, cfg.bpP)
+			createFixedVisualization(data, xMax, *prefix, index, cfg)
 		case TIMESLIZES:
-			createTimeVisualization(data, xMax, *prefix, *ts, cfg.bpP)
+			createTimeVisualization(data, xMax, *prefix, *ts, cfg)
 		}
 	}
 
