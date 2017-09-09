@@ -140,15 +140,16 @@ func createImage(filename string, width, height int, data string) error {
 	return nil
 }
 
-func createTimeVisualization(data []Data, xMax int, prefix string, ts uint, config configs) error {
-	var xPos, yPos int
+func createVisualization(data []Data, xMax int, prefix string, num uint, cfg configs) error {
+	var xPos int = 0
+	var yPos int = -1
 	var bitPos int
 	var bytePos int
 	var packetLen int
 	var firstPkg time.Time
 	var svg bytes.Buffer
-	var bitsPerPixel int = int(config.bpP)
-	var scale int = int(config.scale)
+	var bitsPerPixel int = int(cfg.bpP)
+	var scale int = int(cfg.scale)
 
 	for pkg := range data {
 		if firstPkg.IsZero() {
@@ -156,6 +157,12 @@ func createTimeVisualization(data []Data, xMax int, prefix string, ts uint, conf
 		}
 		packetLen = len(data[pkg].payload)
 		xPos = 0
+		if cfg.stil == SOLDER {
+			yPos += 1
+		} else {
+			current := time.Unix(0, data[pkg].toa*int64(time.Microsecond))
+			yPos = int(current.Sub(firstPkg))
+		}
 		bitPos = 0
 		bytePos = 0
 		for {
@@ -170,39 +177,11 @@ func createTimeVisualization(data []Data, xMax int, prefix string, ts uint, conf
 
 	filename := prefix
 	filename += "-"
-	filename += firstPkg.Format(time.RFC3339Nano)
-	filename += ".svg"
-
-	return createImage(filename, ((xMax*8)/int(bitsPerPixel)+1)*scale, (yPos+1)*scale, svg.String())
-}
-
-func createFixedVisualization(data []Data, xMax int, prefix string, num int, config configs) error {
-	var xPos, yPos int
-	var bitPos int
-	var bytePos int
-	var packetLen int
-	var svg bytes.Buffer
-	var bitsPerPixel int = int(config.bpP)
-	var scale int = int(config.scale)
-
-	for yPos = range data {
-		packetLen = len(data[yPos].payload)
-		xPos = 0
-		bitPos = 0
-		bytePos = 0
-		for {
-			r, g, b := createPixel(data[yPos].payload, &bytePos, &bitPos, uint(bitsPerPixel))
-			fmt.Fprintf(&svg, "<rect x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\" style=\"fill:rgb(%d,%d,%d)\" />\n", xPos*scale, yPos*scale, scale, scale, uint8(r), uint8(g), uint8(b))
-			xPos++
-			if bytePos >= packetLen {
-				break
-			}
-		}
-
+	if cfg.stil == TIMESLIZES {
+		filename += firstPkg.Format(time.RFC3339Nano)
+	} else {
+		filename += strconv.Itoa(int(num))
 	}
-
-	filename := prefix
-	filename += strconv.Itoa(num)
 	filename += ".svg"
 
 	return createImage(filename, ((xMax*8)/bitsPerPixel+1)*scale, (yPos+1)*scale, svg.String())
@@ -312,7 +291,7 @@ func main() {
 	var handle *pcap.Handle
 	var data []Data
 	var xMax int
-	var index int = 1
+	var index uint = 1
 	osSig := make(chan os.Signal, 1)
 	signal.Notify(osSig, os.Interrupt)
 	var slicer int64
@@ -390,7 +369,7 @@ func main() {
 			}
 			if len(data) >= int(cfg.ppI) {
 				xMax++
-				createFixedVisualization(data, xMax, *prefix, index, cfg)
+				createVisualization(data, xMax, *prefix, index, cfg)
 				xMax = 0
 				index++
 				data = data[:0]
@@ -414,7 +393,7 @@ func main() {
 			}
 			if slicer < i.toa {
 				xMax++
-				createTimeVisualization(data, xMax, *prefix, *ts, cfg)
+				createVisualization(data, xMax, *prefix, 0, cfg)
 				xMax = 0
 				data = data[:0]
 				slicer = i.toa + int64(*ts)
@@ -428,12 +407,7 @@ func main() {
 
 	if len(data) > 0 {
 		xMax++
-		switch cfg.stil {
-		case SOLDER:
-			createFixedVisualization(data, xMax, *prefix, index, cfg)
-		case TIMESLIZES:
-			createTimeVisualization(data, xMax, *prefix, *ts, cfg)
-		}
+		createVisualization(data, xMax, *prefix, index, cfg)
 	}
 
 }
