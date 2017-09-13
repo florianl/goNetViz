@@ -59,9 +59,9 @@ func createPixel(packet []byte, byteP, bitP *int, bpP uint) (uint8, uint8, uint8
 
 	if bpP == 1 {
 		if (packet[*byteP] & (1 << uint8(7-*bitP))) == 0 {
-			return 0, 0, 0
+			r, g, b = uint8(0), uint8(0), uint8(0)
 		} else {
-			return 255, 255, 255
+			r, g, b = uint8(255), uint8(255), uint8(255)
 		}
 		*bitP += 1
 		if *bitP%8 == 0 {
