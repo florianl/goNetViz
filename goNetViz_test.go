@@ -98,6 +98,22 @@ func TestCreatePixel(t *testing.T) {
 
 func TestInitSource(t *testing.T) {
 
+	pcapHeader := []byte{
+		0xa1, 0xb2, 0xc3, 0xd4, /*	Magic Number	*/
+		0x00, 0x02, /*	Major Number	*/
+		0x00, 0x04, /*	Minor Number	*/
+		0x00, 0x00, 0x00, 0x00, /*	GMT to Local	*/
+		0x00, 0x00, 0x00, 0x00, /*	Accuracy	*/
+		0x00, 0x00, 0x00, 0x00, /*	Max captured Length	*/
+		0x00, 0x00, 0x00, 0x01, /*	Data Link Type	*/
+	}
+
+	fakePacket := []byte{
+		0x00, 0x00, 0x00, 0x00, /* Timestamp in seconds	*/
+		0x00, 0x00, 0x00, 0x00, /* Timestamp in microseconds	*/
+		0x00, 0x00, 0x00, 0x00, /* Number of Octets	*/
+		0x00, 0x00, 0x00, 0x00, /* Actual Length	*/
+	}
 	fakeData := []byte{
 		0xa1, 0xb2, 0xc3, 0xd4, 0x00, 0x02, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0xff, 0xff, 0x00, 0x00, 0x00, 0x01, 0x58, 0x30, 0x2d, 0x32, 0x00, 0x04, 0x63, 0x31,
@@ -151,6 +167,21 @@ func TestInitSource(t *testing.T) {
 	}
 	defer fakePcap.Close()
 
+	emptyPcap, ferr := ioutil.TempFile(tdir, "empty.pcap")
+	if ferr != nil {
+		t.Fatal(ferr)
+	}
+	defer os.Remove(emptyPcap.Name())
+	ferr = ioutil.WriteFile(emptyPcap.Name(), pcapHeader, 0644)
+	if ferr != nil {
+		t.Fatal(ferr)
+	}
+	ferr = ioutil.WriteFile(emptyPcap.Name(), fakePacket, 0644)
+	if ferr != nil {
+		t.Fatal(ferr)
+	}
+	defer emptyPcap.Close()
+
 	tests := []struct {
 		name   string
 		dev    string
@@ -162,6 +193,7 @@ func TestInitSource(t *testing.T) {
 		{name: "Invalid File", dev: "", file: "/invalid/file", err: "/invalid/file: No such file or directory"},
 		{name: "Non existing Device", dev: "/dev/InvalidDevice", file: "", err: "/dev/InvalidDevice: No such device exists (No such device exists)"},
 		{name: "Invalid Filter", file: fmt.Sprintf("%s", fakePcap.Name()), filter: "noFilter", err: "syntax error in filter expression: syntax error\nInvalid Filter: noFilter"},
+		{name: "Unknown file format", file: fmt.Sprintf("%s", emptyPcap.Name()), err: "unknown file format"},
 	}
 
 	for _, tc := range tests {
