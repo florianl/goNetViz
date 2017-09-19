@@ -9,7 +9,6 @@ import (
 	"github.com/google/gopacket/pcap"
 	"os"
 	"os/signal"
-	"strconv"
 	"time"
 )
 
@@ -180,7 +179,7 @@ func createVisualization(data []Data, xMax int, prefix string, num uint, cfg con
 	if cfg.stil == TIMESLIZES {
 		filename += firstPkg.Format(time.RFC3339Nano)
 	} else {
-		filename += strconv.Itoa(int(num))
+		filename += fmt.Sprint(num)
 	}
 	filename += ".svg"
 
