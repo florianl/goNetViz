@@ -234,7 +234,7 @@ func availableInterfaces() error {
 
 func initSource(dev, file *string, filter *string) (handle *pcap.Handle, err error) {
 	if len(*dev) > 0 {
-		handle, err = pcap.OpenLive(*dev, 4096, true, pcap.BlockForever)
+		handle, err = pcap.OpenLive(*dev, 4096, true, -10*time.Microsecond)
 		if err != nil {
 			return nil, fmt.Errorf("%s", err)
 		}
@@ -293,6 +293,7 @@ func main() {
 	var index uint = 1
 	osSig := make(chan os.Signal, 1)
 	signal.Notify(osSig, os.Interrupt)
+	defer close(osSig)
 	var slicer int64
 	var cfg configs
 	ch := make(chan Data)
