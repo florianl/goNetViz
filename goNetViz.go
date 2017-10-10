@@ -139,7 +139,7 @@ func createImage(filename string, width, height int, data string) error {
 	return nil
 }
 
-func createVisualization(data []Data, xMax int, prefix string, num uint, cfg configs) error {
+func createVisualization(data []Data, xLimit int, prefix string, num uint, cfg configs) error {
 	var xPos int = 0
 	var yPos int = -1
 	var bitPos int
@@ -149,6 +149,7 @@ func createVisualization(data []Data, xMax int, prefix string, num uint, cfg con
 	var svg bytes.Buffer
 	var bitsPerPixel int = int(cfg.bpP)
 	var scale int = int(cfg.scale)
+	var xMax int = 0
 
 	for pkg := range data {
 		if firstPkg.IsZero() {
@@ -171,6 +172,9 @@ func createVisualization(data []Data, xMax int, prefix string, num uint, cfg con
 			if bytePos >= packetLen {
 				break
 			}
+			if xPos > xMax {
+				xMax = xPos
+			}
 		}
 	}
 
@@ -183,7 +187,7 @@ func createVisualization(data []Data, xMax int, prefix string, num uint, cfg con
 	}
 	filename += ".svg"
 
-	return createImage(filename, ((xMax*8)/bitsPerPixel+1)*scale, (yPos+1)*scale, svg.String())
+	return createImage(filename, (xMax+1)*scale, (yPos+1)*scale, svg.String())
 }
 
 func handlePackets(ps *gopacket.PacketSource, num uint, ch chan<- Data, done <-chan os.Signal) {
