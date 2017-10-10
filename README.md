@@ -5,6 +5,8 @@ This is `goNetViz` and it is written in [golang](https://golang.org/).
 `goNetViz` visualizes your network traffic, either by reading a file or
 attaching to a network interface.
 
+[![Build Status](https://travis-ci.org/florianl/goNetViz.svg?branch=master)](https://travis-ci.org/florianl/goNetViz)
+
 **This project is under heavy development as I am learning [golang](https://golang.org/)! Do not use it in production!**
 
         $ ./goNetViz -help
