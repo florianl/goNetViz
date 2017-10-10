@@ -4,6 +4,7 @@ import "testing"
 import "io/ioutil"
 import "os"
 import "fmt"
+import "regexp"
 
 func TestGetBitsFromPacket(t *testing.T) {
 
@@ -189,18 +190,22 @@ func TestInitSource(t *testing.T) {
 		filter string
 		err    string
 	}{
-		{name: "No Source", dev: "", file: "", err: "Source is missing\n"},
-		{name: "Invalid File", dev: "", file: "/invalid/file", err: "/invalid/file: No such file or directory"},
-		{name: "Non existing Device", dev: "/dev/InvalidDevice", file: "", err: "/dev/InvalidDevice: No such device exists (No such device exists)"},
-		{name: "Invalid Filter", file: fmt.Sprintf("%s", fakePcap.Name()), filter: "noFilter", err: "syntax error in filter expression: syntax error\nInvalid Filter: noFilter"},
+		{name: "No Source", dev: "", file: "", err: "Source is missing"},
+		{name: "Invalid File", dev: "", file: "/invalid/file", err: "No such file or directory"},
+		{name: "Non existing Device", dev: "/dev/InvalidDevice", file: "", err: "(No such device exists)|(Operation not permitted)"},
+		{name: "Invalid Filter", file: fmt.Sprintf("%s", fakePcap.Name()), filter: "noFilter", err: "syntax error"},
 		{name: "Unknown file format", file: fmt.Sprintf("%s", emptyPcap.Name()), err: "unknown file format"},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := initSource(&(tc.dev), &(tc.file), &(tc.filter))
-			if err.Error() != tc.err {
-				t.Errorf("Expected: %v \t Got: %v", tc.err, err)
+			if err != nil {
+				if matched, _ := regexp.MatchString(tc.err, err.Error()); matched == false {
+					t.Errorf("Error matching regex: %v \t Got: %v", tc.err, err)
+				}
+			} else if len(tc.err) != 0 {
+				t.Fatalf("Expected error, got none")
 			}
 		})
 	}
