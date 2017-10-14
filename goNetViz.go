@@ -139,7 +139,7 @@ func createImage(filename string, width, height int, data string) error {
 	return nil
 }
 
-func createVisualization(data []Data, xLimit int, prefix string, num uint, cfg configs) error {
+func createVisualization(data []Data, xLimit uint, prefix string, num uint, cfg configs) error {
 	var xPos int = 0
 	var yPos int = -1
 	var bitPos int
@@ -174,6 +174,9 @@ func createVisualization(data []Data, xLimit int, prefix string, num uint, cfg c
 			}
 			if xPos > xMax {
 				xMax = xPos
+			}
+			if xPos >= int(xLimit) && xLimit != 0 {
+				break
 			}
 		}
 	}
@@ -293,7 +296,6 @@ func main() {
 	var err error
 	var handle *pcap.Handle
 	var data []Data
-	var xMax int
 	var index uint = 1
 	osSig := make(chan os.Signal, 1)
 	signal.Notify(osSig, os.Interrupt)
@@ -315,6 +317,7 @@ func main() {
 	bits := flag.Uint("bits", 24, "Number of bits per pixel. It must be divisible by three and smaller than 25 or 1.\n\tTo get black/white results, choose 1 as input.")
 	ts := flag.Uint("timeslize", 0, "Number of microseconds per resulting image.\n\tSo each pixel of the height of the resulting image represents one microsecond.")
 	scale := flag.Uint("scale", 1, "Scaling factor for output.\n\tWorks not for output on terminal.")
+	xlimit := flag.Uint("limit", 0, "Maximim number of bytes per packet.")
 	flag.Parse()
 
 	if *lst {
@@ -368,13 +371,8 @@ func main() {
 	case SOLDER:
 		for i, ok := <-ch; ok; i, ok = <-ch {
 			data = append(data, i)
-			if xMax < len(i.payload) {
-				xMax = len(i.payload)
-			}
 			if len(data) >= int(cfg.ppI) {
-				xMax++
-				createVisualization(data, xMax, *prefix, index, cfg)
-				xMax = 0
+				createVisualization(data, *xlimit, *prefix, index, cfg)
 				index++
 				data = data[:0]
 			}
@@ -396,22 +394,16 @@ func main() {
 				slicer = i.toa + int64(*ts)
 			}
 			if slicer < i.toa {
-				xMax++
-				createVisualization(data, xMax, *prefix, 0, cfg)
-				xMax = 0
+				createVisualization(data, *xlimit, *prefix, 0, cfg)
 				data = data[:0]
 				slicer = i.toa + int64(*ts)
 			}
 			data = append(data, i)
-			if xMax < len(i.payload) {
-				xMax = len(i.payload)
-			}
 		}
 	}
 
 	if len(data) > 0 {
-		xMax++
-		createVisualization(data, xMax, *prefix, index, cfg)
+		createVisualization(data, *xlimit, *prefix, index, cfg)
 	}
 
 }
