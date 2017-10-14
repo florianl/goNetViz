@@ -372,7 +372,11 @@ func main() {
 		for i, ok := <-ch; ok; i, ok = <-ch {
 			data = append(data, i)
 			if len(data) >= int(cfg.ppI) {
-				createVisualization(data, *xlimit, *prefix, index, cfg)
+				err = createVisualization(data, *xlimit, *prefix, index, cfg)
+				if err != nil {
+					fmt.Println("Could not create image:", err)
+					return
+				}
 				index++
 				data = data[:0]
 			}
@@ -394,7 +398,11 @@ func main() {
 				slicer = i.toa + int64(*ts)
 			}
 			if slicer < i.toa {
-				createVisualization(data, *xlimit, *prefix, 0, cfg)
+				err = createVisualization(data, *xlimit, *prefix, 0, cfg)
+				if err != nil {
+					fmt.Println("Could not create image:", err)
+					return
+				}
 				data = data[:0]
 				slicer = i.toa + int64(*ts)
 			}
@@ -403,7 +411,11 @@ func main() {
 	}
 
 	if len(data) > 0 {
-		createVisualization(data, *xlimit, *prefix, index, cfg)
+		err = createVisualization(data, *xlimit, *prefix, index, cfg)
+		if err != nil {
+			fmt.Println("Could not create image:", err)
+			return
+		}
 	}
 
 }
