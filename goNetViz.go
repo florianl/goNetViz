@@ -107,7 +107,7 @@ func createTerminalVisualization(pkt1 Data, pkt2 Data, bitsPerPixel uint) {
 
 }
 
-func createImage(filename string, width, height int, data string) error {
+func createImage(filename string, width, height int, data string, scale int, bitsPerPixel int) error {
 	if len(data) == 0 {
 		return fmt.Errorf("No image data provided")
 	}
@@ -118,6 +118,12 @@ func createImage(filename string, width, height int, data string) error {
 	}
 
 	if _, err := f.WriteString(fmt.Sprintf("<?xml version=\"1.0\"?>\n<svg width=\"%d\" height=\"%d\">\n", width, height)); err != nil {
+		f.Close()
+		return fmt.Errorf("Could not write image: %s", err)
+	}
+
+	if _, err := f.WriteString(fmt.Sprintf("<!-------Scale:%d;BitsPerPixel:%d----->\n",
+		width, height)); err != nil {
 		f.Close()
 		return fmt.Errorf("Could not write image: %s", err)
 	}
@@ -190,7 +196,7 @@ func createVisualization(data []Data, xLimit uint, prefix string, num uint, cfg 
 	}
 	filename += ".svg"
 
-	return createImage(filename, (xMax+1)*scale, (yPos+1)*scale, svg.String())
+	return createImage(filename, (xMax+1)*scale, (yPos+1)*scale, svg.String(), scale, bitsPerPixel)
 }
 
 func handlePackets(ps *gopacket.PacketSource, num uint, ch chan<- Data, done <-chan os.Signal) {
