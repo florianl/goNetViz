@@ -235,7 +235,7 @@ func TestCreateImage(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			err := createImage(tc.filename, tc.width, tc.height, tc.data)
+			err := createImage(tc.filename, tc.width, tc.height, tc.data, 1, 1)
 			if err.Error() != tc.err {
 				t.Errorf("Expected: %v \t Got: %v", tc.err, err)
 			}
