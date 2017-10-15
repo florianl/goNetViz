@@ -253,19 +253,19 @@ func TestCreateVisualization(t *testing.T) {
 	tests := []struct {
 		name   string
 		data   []Data
-		xMax   int
+		xLimit uint
 		prefix string
 		num    uint
 		cfg    configs
 		err    string
 	}{
-		{name: "No Data", xMax: 1, prefix: fmt.Sprintf("%s/noData", dir), num: 1, cfg: configs{1, 0, 0, 0, 0, 1}, err: "No image data provided"},
-		{name: "No Error", data: []Data{{toa: 0, payload: []byte{0xCA, 0xFE, 0xBA, 0xBE}}}, xMax: 1, prefix: fmt.Sprintf("%s/noError", dir), num: 1, cfg: configs{1, 0, 0, 0, 0, 1}},
+		{name: "No Data", xLimit: 1, prefix: fmt.Sprintf("%s/noData", dir), num: 1, cfg: configs{1, 0, 0, 0, 0, 1}, err: "No image data provided"},
+		{name: "No Error", data: []Data{{toa: 0, payload: []byte{0xCA, 0xFE, 0xBA, 0xBE}}}, xLimit: 1, prefix: fmt.Sprintf("%s/noError", dir), num: 1, cfg: configs{1, 0, 0, 0, 0, 1}},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			err := createVisualization(tc.data, tc.xMax, tc.prefix, tc.num, tc.cfg)
+			err := createVisualization(tc.data, tc.xLimit, tc.prefix, tc.num, tc.cfg)
 			if err != nil && err.Error() != tc.err {
 				t.Errorf("Expected: %v \t Got: %v", tc.err, err)
 			} else {
