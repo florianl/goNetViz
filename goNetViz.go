@@ -122,8 +122,8 @@ func createImage(filename string, width, height int, data string, scale int, bit
 		return fmt.Errorf("Could not write image: %s", err)
 	}
 
-	if _, err := f.WriteString(fmt.Sprintf("<!-------Scale:%d;BitsPerPixel:%d----->\n",
-		width, height)); err != nil {
+	if _, err := f.WriteString(fmt.Sprintf("<!--\n\tgoNetViz \"%s\"\n\tScale=%d\n\tBitsPerPixel=%d\n-->\n",
+		Version, scale, bitsPerPixel)); err != nil {
 		f.Close()
 		return fmt.Errorf("Could not write image: %s", err)
 	}
