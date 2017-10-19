@@ -13,9 +13,9 @@ import (
 )
 
 const (
-	SOLDER     = 0x01
-	TERMINAL   = 0x02
-	TIMESLIZES = 0x04
+	solder    = 0x01
+	terminal  = 0x02
+	timeslize = 0x04
 )
 
 // Version number of this tool
@@ -163,7 +163,7 @@ func createVisualization(data []Data, xLimit uint, prefix string, num uint, cfg 
 		}
 		packetLen = len(data[pkg].payload)
 		xPos = 0
-		if cfg.stil == SOLDER {
+		if cfg.stil == solder {
 			yPos += 1
 		} else {
 			current := time.Unix(0, data[pkg].toa*int64(time.Microsecond))
@@ -189,7 +189,7 @@ func createVisualization(data []Data, xLimit uint, prefix string, num uint, cfg 
 
 	filename := prefix
 	filename += "-"
-	if cfg.stil == TIMESLIZES {
+	if cfg.stil == timeslize {
 		filename += firstPkg.Format(time.RFC3339Nano)
 	} else {
 		filename += fmt.Sprint(num)
@@ -278,16 +278,16 @@ func checkConfig(cfg *configs) error {
 	}
 
 	if cfg.ts > 0 {
-		cfg.stil |= TIMESLIZES
+		cfg.stil |= timeslize
 	}
 
-	if cfg.stil == (TIMESLIZES | TERMINAL) {
+	if cfg.stil == (timeslize | terminal) {
 		return fmt.Errorf("-timeslize and -terminal can't be combined")
 	} else if cfg.stil == 0 {
-		cfg.stil |= SOLDER
+		cfg.stil |= solder
 	}
 
-	if cfg.stil == TERMINAL && cfg.scale != 1 {
+	if cfg.stil == terminal && cfg.scale != 1 {
 		return fmt.Errorf("-scale and -terminal can't be combined")
 	}
 
@@ -353,7 +353,7 @@ func main() {
 	cfg.scale = *scale
 
 	if *terminalOut == true {
-		cfg.stil |= TERMINAL
+		cfg.stil |= terminal
 	}
 
 	if err = checkConfig(&cfg); err != nil {
@@ -374,7 +374,7 @@ func main() {
 	go handlePackets(packetSource, cfg.limit, ch, osSig)
 
 	switch cfg.stil {
-	case SOLDER:
+	case solder:
 		for i, ok := <-ch; ok; i, ok = <-ch {
 			data = append(data, i)
 			if len(data) >= int(cfg.ppI) {
@@ -387,7 +387,7 @@ func main() {
 				data = data[:0]
 			}
 		}
-	case TERMINAL:
+	case terminal:
 		for i, ok := <-ch; ok; i, ok = <-ch {
 			var j Data
 			j, ok = <-ch
@@ -398,7 +398,7 @@ func main() {
 				createTerminalVisualization(i, j, cfg.bpP)
 			}
 		}
-	case TIMESLIZES:
+	case timeslize:
 		for i, ok := <-ch; ok; i, ok = <-ch {
 			if slicer == 0 {
 				slicer = i.toa + int64(*ts)
