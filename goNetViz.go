@@ -146,7 +146,7 @@ func createImage(filename string, width, height int, data string, scale int, bit
 }
 
 func createVisualization(data []Data, xLimit uint, prefix string, num uint, cfg configs) error {
-	var xPos int = 0
+	var xPos int
 	var yPos int = -1
 	var bitPos int
 	var bytePos int
@@ -155,7 +155,7 @@ func createVisualization(data []Data, xLimit uint, prefix string, num uint, cfg 
 	var svg bytes.Buffer
 	var bitsPerPixel int = int(cfg.bpP)
 	var scale int = int(cfg.scale)
-	var xMax int = 0
+	var xMax int
 
 	for pkg := range data {
 		if firstPkg.IsZero() {
