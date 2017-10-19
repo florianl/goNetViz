@@ -400,10 +400,10 @@ func main() {
 			}
 		}
 	case timeslize:
-		if slicer == 0 {
-			slicer = i.toa + int64(*ts)
-		}
 		for i, ok := <-ch; ok; i, ok = <-ch {
+			if slicer == 0 {
+				slicer = i.toa + int64(*ts)
+			}
 			if slicer < i.toa {
 				err = createVisualization(data, *xlimit, *prefix, 0, cfg)
 				if err != nil {
