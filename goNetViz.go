@@ -270,7 +270,12 @@ func initSource(dev, file *string, filter *string) (handle *pcap.Handle, err err
 	return
 }
 
-func checkConfig(cfg *configs) error {
+func checkConfig(cfg *configs, console bool) error {
+
+	if console {
+		cfg.stil |= terminal
+	}
+
 	if cfg.bpP%3 != 0 && cfg.bpP != 1 {
 		return fmt.Errorf("-bits %d is not divisible by three or one", cfg.bpP)
 	} else if cfg.bpP > 25 {
@@ -339,7 +344,7 @@ func main() {
 		return
 	}
 
-	if *help || len(os.Args) < 2 {
+	if *help {
 		fmt.Println(os.Args[0], "[-bits ...] [-count ...] [-file ... | -interface ...] [-filter ...] [-list_interfaces] [-help] [-prefix ...] [-scale ...] [-size ... | -timeslize ... | -terminal] [-version]")
 		flag.PrintDefaults()
 		return
@@ -352,11 +357,7 @@ func main() {
 	cfg.stil = 0
 	cfg.scale = *scale
 
-	if *terminalOut == true {
-		cfg.stil |= terminal
-	}
-
-	if err = checkConfig(&cfg); err != nil {
+	if err = checkConfig(&cfg, *terminalOut); err != nil {
 		fmt.Println("Configuration error:", err)
 		return
 	}
