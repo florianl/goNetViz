@@ -41,25 +41,26 @@ func TestGetBitsFromPacket(t *testing.T) {
 
 func TestCheckConfig(t *testing.T) {
 	tests := []struct {
-		name string
-		cfg  configs
-		err  string
+		name    string
+		cfg     configs
+		console bool
+		err     string
 	}{
 		// Testing different output stiles
-		{name: "Two Bits per Pixel", cfg: configs{2, 0, 0, 0, TERMINAL, 1}, err: "-bits 2 is not divisible by three or one"},
-		{name: "One Bit per Pixel", cfg: configs{1, 0, 0, 0, TERMINAL, 1}},
-		{name: "27 Bits per Pixel", cfg: configs{27, 0, 0, 0, TERMINAL, 1}, err: "-bits 27 must be smaller than 25"},
-		{name: "Terminal only", cfg: configs{3, 0, 0, 0, TERMINAL, 1}},
-		{name: "Terminal and Timeslize", cfg: configs{3, 0, 0, 0, (TERMINAL | TIMESLIZES), 1}, err: "-timeslize and -terminal can't be combined"},
+		{name: "Two Bits per Pixel", cfg: configs{2, 0, 0, 0, terminal, 1}, err: "-bits 2 is not divisible by three or one"},
+		{name: "One Bit per Pixel", cfg: configs{1, 0, 0, 0, terminal, 1}},
+		{name: "27 Bits per Pixel", cfg: configs{27, 0, 0, 0, terminal, 1}, err: "-bits 27 must be smaller than 25"},
+		{name: "Terminal only", cfg: configs{3, 0, 0, 0, terminal, 1}},
+		{name: "Terminal and Timeslize", cfg: configs{3, 0, 0, 0, (terminal | timeslize), 1}, console: true, err: "-timeslize and -terminal can't be combined"},
 		{name: "Fixed Slize", cfg: configs{1, 0, 0, 0, 0, 1}},
 		{name: "Time Slize", cfg: configs{1, 0, 50, 0, 0, 1}},
-		{name: "Scale and Terminal", cfg: configs{1, 0, 0, 0, TERMINAL, 2}, err: "-scale and -terminal can't be combined"},
+		{name: "Scale and Terminal", cfg: configs{1, 0, 0, 0, terminal, 2}, console: true, err: "-scale and -terminal can't be combined"},
 		{name: "Time Slize", cfg: configs{1, 0, 50, 0, 0, 0}, err: "scale factor has to be at least 1"},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			res := checkConfig(&tc.cfg)
+			res := checkConfig(&tc.cfg, tc.console)
 
 			if tc.err != "" {
 				if res.Error() != tc.err {
