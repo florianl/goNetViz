@@ -308,12 +308,12 @@ func main() {
 	var handle *pcap.Handle
 	var data []Data
 	var index uint = 1
-	osSig := make(chan os.Signal, 1)
+	osSig := make(chan os.Signal)
 	signal.Notify(osSig, os.Interrupt)
 	defer close(osSig)
 	var slicer int64
 	var cfg configs
-	ch := make(chan Data)
+	ch := make(chan Data, 512)
 
 	dev := flag.String("interface", "", "Choose an interface for online processing.")
 	file := flag.String("file", "", "Choose a file for offline processing.")
