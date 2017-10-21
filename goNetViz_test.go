@@ -278,3 +278,22 @@ func TestCreateVisualization(t *testing.T) {
 		})
 	}
 }
+
+func TestCreateTerminalVisualization(t *testing.T) {
+	tests := []struct {
+		name         string
+		pkt1         Data
+		pkt2         Data
+		bitsPerPixel uint
+	}{
+		{name: "bytePos >= pkt1Len", pkt1: Data{toa: 0, payload: []byte{0x01}}, pkt2: Data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, bitsPerPixel: 3},
+		{name: "bytePos >= pkt2Len", pkt1: Data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, pkt2: Data{toa: 0, payload: []byte{0x01}}, bitsPerPixel: 3},
+		{name: "pkt1Len == pkt2Len", pkt1: Data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, pkt2: Data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, bitsPerPixel: 3},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			createTerminalVisualization(tc.pkt1, tc.pkt2, tc.bitsPerPixel)
+		})
+	}
+}
