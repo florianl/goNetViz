@@ -24,6 +24,7 @@ func TestGetBitsFromPacket(t *testing.T) {
 		{"9 Bits", []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, 9, 224},
 		{"6 Bits", []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, 6, 192},
 		{"3 Bits", []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, 3, 128},
+		{"Too less bits", []byte{0x1}, 24, 1},
 	}
 
 	for _, tc := range tests {
@@ -87,6 +88,7 @@ func TestCreatePixel(t *testing.T) {
 		{"Royal Blue", []byte{0x41, 0x69, 0xE1, 0x41, 0x69, 0xE1}, 0, 0, 24, 65, 105, 225},
 		{"Byte Boundary", []byte{0xA5, 0xA5, 0xA5}, 0, 6, 24, 165, 165, 1},
 		{"Byte Boundary", []byte{0x5A, 0x5A, 0x5A, 0x5A, 0x5A, 0x5A}, 0, 7, 1, 0, 0, 0},
+		{"Too less bits", []byte{0xFF}, 0, 0, 24, 255, 0, 0},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
