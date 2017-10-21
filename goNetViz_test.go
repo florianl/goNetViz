@@ -262,8 +262,9 @@ func TestCreateVisualization(t *testing.T) {
 		cfg    configs
 		err    string
 	}{
-		{name: "No Data", xLimit: 1, prefix: fmt.Sprintf("%s/noData", dir), num: 1, cfg: configs{1, 0, 0, 0, 0, 1}, err: "No image data provided"},
-		{name: "No Error", data: []Data{{toa: 0, payload: []byte{0xCA, 0xFE, 0xBA, 0xBE}}}, xLimit: 1, prefix: fmt.Sprintf("%s/noError", dir), num: 1, cfg: configs{1, 0, 0, 0, 0, 1}},
+		{name: "No Data", xLimit: 1, prefix: fmt.Sprintf("%s/noData", dir), num: 1, cfg: configs{1, 0, 0, 0, solder, 1}, err: "No image data provided"},
+		{name: "Solid image", data: []Data{{toa: 0, payload: []byte{0xCA, 0xFE, 0xBA, 0xBE}}}, xLimit: 1, prefix: fmt.Sprintf("%s/solid", dir), num: 1, cfg: configs{24, 0, 0, 0, solder, 1}},
+		{name: "Timeslize image", data: []Data{{toa: 0, payload: []byte{0xCA, 0xFE, 0xBA, 0xBE}}}, xLimit: 1, prefix: fmt.Sprintf("%s/timeslize", dir), num: 1, cfg: configs{24, 0, 0, 0, timeslize, 1}},
 	}
 
 	for _, tc := range tests {
