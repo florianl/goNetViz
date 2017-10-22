@@ -77,31 +77,29 @@ func createPixel(packet []byte, byteP, bitP *int, bpP uint) (uint8, uint8, uint8
 }
 
 func createTerminalVisualization(pkt1 Data, pkt2 Data, bitsPerPixel uint) {
-	var bitPos, cpyBitPos int
-	var bytePos, cpyBytePos int
+	var bit1Pos, bit2Pos int
+	var byte1Pos, byte2Pos int
 	var pkt1Len, pkt2Len int
 	var r1, g1, b1 uint8
 	var r2, g2, b2 uint8
 
 	pkt1Len = len(pkt1.payload)
 	pkt2Len = len(pkt2.payload)
-	bitPos = 0
-	bytePos = 0
 	for {
-		if bytePos >= pkt1Len {
+		if byte1Pos > pkt1Len {
 			r1, g1, b1 = 0x00, 0x00, 0x00
-			r2, g2, b2 = createPixel(pkt2.payload, &bytePos, &bitPos, bitsPerPixel)
-		} else if bytePos >= pkt2Len {
-			r1, g1, b1 = createPixel(pkt1.payload, &bytePos, &bitPos, bitsPerPixel)
+			r2, g2, b2 = createPixel(pkt2.payload, &byte2Pos, &bit2Pos, bitsPerPixel)
+			fmt.Printf("\x1B[38;2;%d;%d;%dm\x1B[48;2;%d;%d;%dm\u2584", r2, g2, b2, r1, g1, b1)
+		} else if byte2Pos > pkt2Len {
+			r1, g1, b1 = createPixel(pkt1.payload, &byte1Pos, &bit1Pos, bitsPerPixel)
 			r2, g2, b2 = 0x00, 0x00, 0x00
+			fmt.Printf("\x1B[48;2;%d;%d;%dm\x1B[38;2;%d;%d;%dm\u2580", r2, g2, b2, r1, g1, b1)
 		} else {
-			cpyBitPos = bitPos
-			cpyBytePos = bytePos
-			r1, g1, b1 = createPixel(pkt1.payload, &cpyBytePos, &cpyBitPos, bitsPerPixel)
-			r2, g2, b2 = createPixel(pkt2.payload, &bytePos, &bitPos, bitsPerPixel)
+			r1, g1, b1 = createPixel(pkt1.payload, &byte1Pos, &bit1Pos, bitsPerPixel)
+			r2, g2, b2 = createPixel(pkt2.payload, &byte2Pos, &bit2Pos, bitsPerPixel)
+			fmt.Printf("\x1B[48;2;%d;%d;%dm\x1B[38;2;%d;%d;%dm\u2580", r2, g2, b2, r1, g1, b1)
 		}
-		fmt.Printf("\x1B[48;2;%d;%d;%dm\x1B[38;2;%d;%d;%dm\u2580", r2, g2, b2, r1, g1, b1)
-		if bytePos >= pkt1Len && bytePos >= pkt2Len {
+		if byte1Pos >= pkt1Len && byte2Pos >= pkt2Len {
 			break
 		}
 	}
