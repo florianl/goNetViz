@@ -313,7 +313,7 @@ func main() {
 	defer close(osSig)
 	var slicer int64
 	var cfg configs
-	ch := make(chan Data, 512)
+	ch := make(chan Data)
 
 	dev := flag.String("interface", "", "Choose an interface for online processing.")
 	file := flag.String("file", "", "Choose a file for offline processing.")
