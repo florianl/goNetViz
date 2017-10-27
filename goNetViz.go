@@ -196,13 +196,14 @@ func createVisualization(data []Data, xLimit uint, prefix string, num uint, cfg 
 	}
 	filename += ".svg"
 
-	return createImage(filename, (xMax+1)*scale, (yPos+1)*scale, svg.String(), scale, bitsPerPixel)
+	go createImage(filename, (xMax+1)*scale, (yPos+1)*scale, svg.String(), scale, bitsPerPixel)
+
+	return nil
 }
 
 func handlePackets(ps *gopacket.PacketSource, num uint, ch chan<- Data, done <-chan os.Signal) {
 	var count uint
 	for packet := range ps.Packets() {
-		var k Data
 		select {
 		case <-done:
 			close(ch)
@@ -218,8 +219,7 @@ func handlePackets(ps *gopacket.PacketSource, num uint, ch chan<- Data, done <-c
 		if len(elements) == 0 {
 			continue
 		}
-		k = Data{toa: (packet.Metadata().CaptureInfo.Timestamp.UnixNano() / int64(time.Microsecond)), payload: packet.Data()}
-		ch <- k
+		ch <- Data{toa: (packet.Metadata().CaptureInfo.Timestamp.UnixNano() / int64(time.Microsecond)), payload: packet.Data()}
 	}
 	close(ch)
 	return
