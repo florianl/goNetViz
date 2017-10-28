@@ -29,12 +29,13 @@ type Data struct {
 
 // configs represents all the configuration data
 type configs struct {
-	bpP   uint // Bits per Pixel
-	ppI   uint // Number of packets per Image
-	ts    uint // "Duration" for one Image
-	limit uint // Number of network packets to process
-	stil  uint // Type of illustration
-	scale uint // Scaling factor for output
+	bpP    uint // Bits per Pixel
+	ppI    uint // Number of packets per Image
+	ts     uint // "Duration" for one Image
+	limit  uint // Number of network packets to process
+	stil   uint // Type of illustration
+	scale  uint // Scaling factor for output
+	xlimit uint // Limit of bytes per packet
 }
 
 func getBitsFromPacket(packet []byte, byteP, bitP *int, bpP uint) uint8 {
@@ -76,12 +77,13 @@ func createPixel(packet []byte, byteP, bitP *int, bpP uint) (uint8, uint8, uint8
 	return r, g, b
 }
 
-func createTerminalVisualization(pkt1 Data, pkt2 Data, bitsPerPixel uint) {
+func createTerminalVisualization(pkt1 Data, pkt2 Data, cfg configs) {
 	var bit1Pos, bit2Pos int
 	var byte1Pos, byte2Pos int
 	var pkt1Len, pkt2Len int
 	var r1, g1, b1 uint8
 	var r2, g2, b2 uint8
+	var bitsPerPixel = uint(cfg.bpP)
 
 	pkt1Len = len(pkt1.payload)
 	pkt2Len = len(pkt2.payload)
@@ -100,6 +102,9 @@ func createTerminalVisualization(pkt1 Data, pkt2 Data, bitsPerPixel uint) {
 			fmt.Printf("\x1B[48;2;%d;%d;%dm\x1B[38;2;%d;%d;%dm\u2580", r2, g2, b2, r1, g1, b1)
 		}
 		if byte1Pos >= pkt1Len && byte2Pos >= pkt2Len {
+			break
+		}
+		if byte1Pos >= int(cfg.xlimit) || byte2Pos >= int(cfg.xlimit) {
 			break
 		}
 	}
@@ -328,7 +333,7 @@ func main() {
 	bits := flag.Uint("bits", 24, "Number of bits per pixel. It must be divisible by three and smaller than 25 or 1.\n\tTo get black/white results, choose 1 as input.")
 	ts := flag.Uint("timeslize", 0, "Number of microseconds per resulting image.\n\tSo each pixel of the height of the resulting image represents one microsecond.")
 	scale := flag.Uint("scale", 1, "Scaling factor for output.\n\tWorks not for output on terminal.")
-	xlimit := flag.Uint("limit", 0, "Maximim number of bytes per packet.")
+	xlimit := flag.Uint("limit", 1500, "Maximim number of bytes per packet.\n\tIf your MTU is higher than the default value of 1500 you might change this value.")
 	flag.Parse()
 
 	if *lst {
@@ -356,6 +361,7 @@ func main() {
 	cfg.limit = *num
 	cfg.stil = 0
 	cfg.scale = *scale
+	cfg.xlimit = *xlimit
 
 	if err = checkConfig(&cfg, *terminalOut); err != nil {
 		fmt.Println("Configuration error:", err)
@@ -393,10 +399,10 @@ func main() {
 			var j Data
 			j, ok = <-ch
 			if !ok {
-				createTerminalVisualization(i, Data{toa: 0, payload: nil}, cfg.bpP)
+				createTerminalVisualization(i, Data{toa: 0, payload: nil}, cfg)
 				break
 			} else {
-				createTerminalVisualization(i, j, cfg.bpP)
+				createTerminalVisualization(i, j, cfg)
 			}
 		}
 	case timeslize:
