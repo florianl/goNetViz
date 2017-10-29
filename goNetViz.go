@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"flag"
 	"fmt"
 	"github.com/google/gopacket"
@@ -36,6 +37,12 @@ type configs struct {
 	stil   uint // Type of illustration
 	scale  uint // Scaling factor for output
 	xlimit uint // Limit of bytes per packet
+}
+
+type Context struct {
+	ctx    context.Context
+	cancel context.CancelFunc
+	err    error
 }
 
 func getBitsFromPacket(packet []byte, byteP, bitP *int, bpP uint) uint8 {
@@ -112,45 +119,57 @@ func createTerminalVisualization(pkt1 Data, pkt2 Data, cfg configs) {
 
 }
 
-func createImage(filename string, width, height int, data string, scale int, bitsPerPixel int) error {
+func createImage(ctrl Context, filename string, width, height int, data string, scale int, bitsPerPixel int) {
 	if len(data) == 0 {
-		return fmt.Errorf("No image data provided")
+		ctrl.err = fmt.Errorf("No image data provided")
+		ctrl.cancel()
+		return
 	}
 
 	f, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
-		return fmt.Errorf("Could not open image: %s", err)
+		ctrl.err = err
+		ctrl.cancel()
+		return
 	}
 
 	if _, err := f.WriteString(fmt.Sprintf("<?xml version=\"1.0\"?>\n<svg width=\"%d\" height=\"%d\">\n", width, height)); err != nil {
 		f.Close()
-		return fmt.Errorf("Could not write image: %s", err)
+		ctrl.err = err
+		ctrl.cancel()
+		return
 	}
 
 	if _, err := f.WriteString(fmt.Sprintf("<!--\n\tgoNetViz \"%s\"\n\tScale=%d\n\tBitsPerPixel=%d\n-->\n",
 		Version, scale, bitsPerPixel)); err != nil {
 		f.Close()
-		return fmt.Errorf("Could not write image: %s", err)
+		ctrl.err = err
+		ctrl.cancel()
+		return
 	}
 
 	if _, err := f.WriteString(data); err != nil {
 		f.Close()
-		return fmt.Errorf("Could not write image: %s", err)
+		ctrl.err = err
+		ctrl.cancel()
+		return
 	}
 
 	if _, err := f.WriteString("</svg>"); err != nil {
 		f.Close()
-		return fmt.Errorf("Could not write image: %s", err)
+		ctrl.err = err
+		ctrl.cancel()
+		return
 	}
 
 	if err := f.Close(); err != nil {
-		return fmt.Errorf("Could not close image: %s", err)
+		ctrl.err = err
+		ctrl.cancel()
+		return
 	}
-
-	return nil
 }
 
-func createVisualization(data []Data, xLimit uint, prefix string, num uint, cfg configs) error {
+func createVisualization(ctrl Context, data []Data, xLimit uint, prefix string, num uint, cfg configs) {
 	var xPos int
 	var yPos int = -1
 	var bitPos int
@@ -201,16 +220,14 @@ func createVisualization(data []Data, xLimit uint, prefix string, num uint, cfg 
 	}
 	filename += ".svg"
 
-	go createImage(filename, (xMax+1)*scale, (yPos+1)*scale, svg.String(), scale, bitsPerPixel)
-
-	return nil
+	go createImage(ctrl, filename, (xMax+1)*scale, (yPos+1)*scale, svg.String(), scale, bitsPerPixel)
 }
 
-func handlePackets(ps *gopacket.PacketSource, num uint, ch chan<- Data, done <-chan os.Signal) {
+func handlePackets(ctrl Context, ps *gopacket.PacketSource, num uint, ch chan<- Data) {
 	var count uint
 	for packet := range ps.Packets() {
 		select {
-		case <-done:
+		case <-ctrl.ctx.Done():
 			close(ch)
 			return
 		default:
@@ -313,12 +330,33 @@ func main() {
 	var handle *pcap.Handle
 	var data []Data
 	var index uint = 1
-	osSig := make(chan os.Signal)
-	signal.Notify(osSig, os.Interrupt)
-	defer close(osSig)
 	var slicer int64
 	var cfg configs
 	ch := make(chan Data)
+	ctx, cancel := context.WithCancel(context.Background())
+	ctrl := Context{
+		ctx:    ctx,
+		cancel: cancel,
+		err:    nil,
+	}
+	osSig := make(chan os.Signal)
+	signal.Notify(osSig, os.Interrupt)
+	defer func() {
+		signal.Stop(osSig)
+		ctrl.cancel()
+	}()
+
+	go func() {
+		select {
+		case <-osSig:
+			ctrl.cancel()
+		case <-ctrl.ctx.Done():
+			if ctrl.err != nil {
+				fmt.Println(ctrl.err.Error())
+			}
+			return
+		}
+	}()
 
 	dev := flag.String("interface", "", "Choose an interface for online processing.")
 	file := flag.String("file", "", "Choose a file for offline processing.")
@@ -378,18 +416,14 @@ func main() {
 	packetSource := gopacket.NewPacketSource(handle, layers.LayerTypeEthernet)
 	packetSource.DecodeOptions = gopacket.Lazy
 
-	go handlePackets(packetSource, cfg.limit, ch, osSig)
+	go handlePackets(ctrl, packetSource, cfg.limit, ch)
 
 	switch cfg.stil {
 	case solder:
 		for i, ok := <-ch; ok; i, ok = <-ch {
 			data = append(data, i)
 			if len(data) >= int(cfg.ppI) {
-				err = createVisualization(data, *xlimit, *prefix, index, cfg)
-				if err != nil {
-					fmt.Println("Could not create image:", err)
-					return
-				}
+				createVisualization(ctrl, data, *xlimit, *prefix, index, cfg)
 				index++
 				data = data[:0]
 			}
@@ -411,11 +445,7 @@ func main() {
 				slicer = i.toa + int64(*ts)
 			}
 			if slicer < i.toa {
-				err = createVisualization(data, *xlimit, *prefix, 0, cfg)
-				if err != nil {
-					fmt.Println("Could not create image:", err)
-					return
-				}
+				createVisualization(ctrl, data, *xlimit, *prefix, 0, cfg)
 				data = data[:0]
 				slicer = i.toa + int64(*ts)
 			}
@@ -424,11 +454,7 @@ func main() {
 	}
 
 	if len(data) > 0 {
-		err = createVisualization(data, *xlimit, *prefix, index, cfg)
-		if err != nil {
-			fmt.Println("Could not create image:", err)
-			return
-		}
+		createVisualization(ctrl, data, *xlimit, *prefix, index, cfg)
 	}
 
 }
