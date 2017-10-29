@@ -230,16 +230,16 @@ func TestCreateImage(t *testing.T) {
 	defer os.RemoveAll(dir)
 	tests := []struct {
 		name     string
-		ctrl     Context
+		ctrl     ctrlCtx
 		filename string
 		width    int
 		height   int
 		data     string
 		err      string
 	}{
-		{name: "No Filename", ctrl: Context{ctx: ctx0, cancel: cancel0}, filename: "", data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />", err: "Could not open image: open : no such file or directory"},
-		{name: "Just directory name", ctrl: Context{ctx: ctx1, cancel: cancel1}, filename: dir, data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />", err: fmt.Sprintf("Could not open image: open %s: is a directory", dir)},
-		{name: "No Data", ctrl: Context{ctx: ctx2, cancel: cancel2}, filename: fmt.Sprintf("%s/test.svg", dir), err: "No image data provided"},
+		{name: "No Filename", ctrl: ctrlCtx{ctx: ctx0, cancel: cancel0}, filename: "", data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />", err: "Could not open image: open : no such file or directory"},
+		{name: "Just directory name", ctrl: ctrlCtx{ctx: ctx1, cancel: cancel1}, filename: dir, data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />", err: fmt.Sprintf("Could not open image: open %s: is a directory", dir)},
+		{name: "No Data", ctrl: ctrlCtx{ctx: ctx2, cancel: cancel2}, filename: fmt.Sprintf("%s/test.svg", dir), err: "No image data provided"},
 	}
 
 	for _, tc := range tests {
@@ -264,23 +264,23 @@ func TestCreateVisualization(t *testing.T) {
 	ctx2, cancel2 := context.WithCancel(context.Background())
 
 	tests := []struct {
-		name   string
-		ctrl   Context
-		data   []Data
-		xLimit uint
-		prefix string
-		num    uint
-		cfg    configs
-		err    string
+		name    string
+		ctrl    ctrlCtx
+		content []data
+		xLimit  uint
+		prefix  string
+		num     uint
+		cfg     configs
+		err     string
 	}{
-		{name: "No Data", ctrl: Context{ctx: ctx0, cancel: cancel0}, xLimit: 1, prefix: fmt.Sprintf("%s/noData", dir), num: 1, cfg: configs{1, 0, 0, 0, solder, 1, 1500}, err: "No image data provided"},
-		{name: "Solid image", ctrl: Context{ctx: ctx1, cancel: cancel1}, data: []Data{{toa: 0, payload: []byte{0xCA, 0xFE, 0xBA, 0xBE}}}, xLimit: 1, prefix: fmt.Sprintf("%s/solid", dir), num: 1, cfg: configs{24, 0, 0, 0, solder, 1, 1500}},
-		{name: "Timeslize image", ctrl: Context{ctx: ctx2, cancel: cancel2}, data: []Data{{toa: 0, payload: []byte{0xCA, 0xFE, 0xBA, 0xBE}}}, xLimit: 1, prefix: fmt.Sprintf("%s/timeslize", dir), num: 1, cfg: configs{24, 0, 0, 0, timeslize, 1, 1500}},
+		{name: "No Data", ctrl: ctrlCtx{ctx: ctx0, cancel: cancel0}, xLimit: 1, prefix: fmt.Sprintf("%s/noData", dir), num: 1, cfg: configs{1, 0, 0, 0, solder, 1, 1500}, err: "No image data provided"},
+		{name: "Solid image", ctrl: ctrlCtx{ctx: ctx1, cancel: cancel1}, content: []data{{toa: 0, payload: []byte{0xCA, 0xFE, 0xBA, 0xBE}}}, xLimit: 1, prefix: fmt.Sprintf("%s/solid", dir), num: 1, cfg: configs{24, 0, 0, 0, solder, 1, 1500}},
+		{name: "Timeslize image", ctrl: ctrlCtx{ctx: ctx2, cancel: cancel2}, content: []data{{toa: 0, payload: []byte{0xCA, 0xFE, 0xBA, 0xBE}}}, xLimit: 1, prefix: fmt.Sprintf("%s/timeslize", dir), num: 1, cfg: configs{24, 0, 0, 0, timeslize, 1, 1500}},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			createVisualization(tc.ctrl, tc.data, tc.xLimit, tc.prefix, tc.num, tc.cfg)
+			createVisualization(tc.ctrl, tc.content, tc.xLimit, tc.prefix, tc.num, tc.cfg)
 			if tc.ctrl.err != nil && tc.ctrl.err.Error() != tc.err {
 				t.Errorf("Expected: %v \t Got: %v", tc.err, tc.ctrl.err.Error())
 			} else {
@@ -293,13 +293,13 @@ func TestCreateVisualization(t *testing.T) {
 func TestCreateTerminalVisualization(t *testing.T) {
 	tests := []struct {
 		name string
-		pkt1 Data
-		pkt2 Data
+		pkt1 data
+		pkt2 data
 		cfg  configs
 	}{
-		{name: "bytePos >= pkt1Len", pkt1: Data{toa: 0, payload: []byte{0x01}}, pkt2: Data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, cfg: configs{3, 0, 0, 0, timeslize, 1, 1500}},
-		{name: "bytePos >= pkt2Len", pkt1: Data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, pkt2: Data{toa: 0, payload: []byte{0x01}}, cfg: configs{3, 0, 0, 0, timeslize, 1, 1500}},
-		{name: "pkt1Len == pkt2Len", pkt1: Data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, pkt2: Data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, cfg: configs{3, 0, 0, 0, timeslize, 1, 1500}},
+		{name: "bytePos >= pkt1Len", pkt1: data{toa: 0, payload: []byte{0x01}}, pkt2: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, cfg: configs{3, 0, 0, 0, timeslize, 1, 1500}},
+		{name: "bytePos >= pkt2Len", pkt1: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, pkt2: data{toa: 0, payload: []byte{0x01}}, cfg: configs{3, 0, 0, 0, timeslize, 1, 1500}},
+		{name: "pkt1Len == pkt2Len", pkt1: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, pkt2: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, cfg: configs{3, 0, 0, 0, timeslize, 1, 1500}},
 	}
 
 	for _, tc := range tests {

@@ -20,10 +20,10 @@ const (
 )
 
 // Version number of this tool
-const Version = "0.0.2"
+const Version = "0.0.3"
 
 // Data is a struct for each network packet
-type Data struct {
+type data struct {
 	toa     int64  // Timestamp of arrival in microseconds
 	payload []byte // Copied network packet
 }
@@ -39,7 +39,7 @@ type configs struct {
 	xlimit uint // Limit of bytes per packet
 }
 
-type Context struct {
+type ctrlCtx struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	err    error
@@ -84,7 +84,7 @@ func createPixel(packet []byte, byteP, bitP *int, bpP uint) (uint8, uint8, uint8
 	return r, g, b
 }
 
-func createTerminalVisualization(pkt1 Data, pkt2 Data, cfg configs) {
+func createTerminalVisualization(pkt1, pkt2 data, cfg configs) {
 	var bit1Pos, bit2Pos int
 	var byte1Pos, byte2Pos int
 	var pkt1Len, pkt2Len int
@@ -119,8 +119,8 @@ func createTerminalVisualization(pkt1 Data, pkt2 Data, cfg configs) {
 
 }
 
-func createImage(ctrl Context, filename string, width, height int, data string, scale int, bitsPerPixel int) {
-	if len(data) == 0 {
+func createImage(ctrl ctrlCtx, filename string, width, height int, content string, scale int, bitsPerPixel int) {
+	if len(content) == 0 {
 		ctrl.err = fmt.Errorf("No image data provided")
 		ctrl.cancel()
 		return
@@ -148,7 +148,7 @@ func createImage(ctrl Context, filename string, width, height int, data string, 
 		return
 	}
 
-	if _, err := f.WriteString(data); err != nil {
+	if _, err := f.WriteString(content); err != nil {
 		f.Close()
 		ctrl.err = err
 		ctrl.cancel()
@@ -169,7 +169,7 @@ func createImage(ctrl Context, filename string, width, height int, data string, 
 	}
 }
 
-func createVisualization(ctrl Context, data []Data, xLimit uint, prefix string, num uint, cfg configs) {
+func createVisualization(ctrl ctrlCtx, content []data, xLimit uint, prefix string, num uint, cfg configs) {
 	var xPos int
 	var yPos int = -1
 	var bitPos int
@@ -181,22 +181,22 @@ func createVisualization(ctrl Context, data []Data, xLimit uint, prefix string, 
 	var scale int = int(cfg.scale)
 	var xMax int
 
-	for pkg := range data {
+	for pkg := range content {
 		if firstPkg.IsZero() {
-			firstPkg = time.Unix(0, data[pkg].toa*int64(time.Microsecond))
+			firstPkg = time.Unix(0, content[pkg].toa*int64(time.Microsecond))
 		}
-		packetLen = len(data[pkg].payload)
+		packetLen = len(content[pkg].payload)
 		xPos = 0
 		if cfg.stil == solder {
 			yPos += 1
 		} else {
-			current := time.Unix(0, data[pkg].toa*int64(time.Microsecond))
+			current := time.Unix(0, content[pkg].toa*int64(time.Microsecond))
 			yPos = int(current.Sub(firstPkg))
 		}
 		bitPos = 0
 		bytePos = 0
 		for {
-			r, g, b := createPixel(data[pkg].payload, &bytePos, &bitPos, uint(bitsPerPixel))
+			r, g, b := createPixel(content[pkg].payload, &bytePos, &bitPos, uint(bitsPerPixel))
 			fmt.Fprintf(&svg, "<rect x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\" style=\"fill:rgb(%d,%d,%d)\" />\n", xPos*scale, yPos*scale, scale, scale, uint8(r), uint8(g), uint8(b))
 			xPos++
 			if bytePos >= packetLen {
@@ -223,7 +223,7 @@ func createVisualization(ctrl Context, data []Data, xLimit uint, prefix string, 
 	go createImage(ctrl, filename, (xMax+1)*scale, (yPos+1)*scale, svg.String(), scale, bitsPerPixel)
 }
 
-func handlePackets(ctrl Context, ps *gopacket.PacketSource, num uint, ch chan<- Data) {
+func handlePackets(ctrl ctrlCtx, ps *gopacket.PacketSource, num uint, ch chan<- data) {
 	var count uint
 	for packet := range ps.Packets() {
 		select {
@@ -241,7 +241,7 @@ func handlePackets(ctrl Context, ps *gopacket.PacketSource, num uint, ch chan<- 
 		if len(elements) == 0 {
 			continue
 		}
-		ch <- Data{toa: (packet.Metadata().CaptureInfo.Timestamp.UnixNano() / int64(time.Microsecond)), payload: packet.Data()}
+		ch <- data{toa: (packet.Metadata().CaptureInfo.Timestamp.UnixNano() / int64(time.Microsecond)), payload: packet.Data()}
 	}
 	close(ch)
 	return
@@ -328,13 +328,13 @@ func checkConfig(cfg *configs, console bool) error {
 func main() {
 	var err error
 	var handle *pcap.Handle
-	var data []Data
+	var content []data
 	var index uint = 1
 	var slicer int64
 	var cfg configs
-	ch := make(chan Data)
+	ch := make(chan data)
 	ctx, cancel := context.WithCancel(context.Background())
-	ctrl := Context{
+	ctrl := ctrlCtx{
 		ctx:    ctx,
 		cancel: cancel,
 		err:    nil,
@@ -421,19 +421,19 @@ func main() {
 	switch cfg.stil {
 	case solder:
 		for i, ok := <-ch; ok; i, ok = <-ch {
-			data = append(data, i)
-			if len(data) >= int(cfg.ppI) {
-				createVisualization(ctrl, data, *xlimit, *prefix, index, cfg)
+			content = append(content, i)
+			if len(content) >= int(cfg.ppI) {
+				createVisualization(ctrl, content, *xlimit, *prefix, index, cfg)
 				index++
-				data = data[:0]
+				content = content[:0]
 			}
 		}
 	case terminal:
 		for i, ok := <-ch; ok; i, ok = <-ch {
-			var j Data
+			var j data
 			j, ok = <-ch
 			if !ok {
-				createTerminalVisualization(i, Data{toa: 0, payload: nil}, cfg)
+				createTerminalVisualization(i, data{toa: 0, payload: nil}, cfg)
 				break
 			} else {
 				createTerminalVisualization(i, j, cfg)
@@ -445,16 +445,16 @@ func main() {
 				slicer = i.toa + int64(*ts)
 			}
 			if slicer < i.toa {
-				createVisualization(ctrl, data, *xlimit, *prefix, 0, cfg)
-				data = data[:0]
+				createVisualization(ctrl, content, *xlimit, *prefix, 0, cfg)
+				content = content[:0]
 				slicer = i.toa + int64(*ts)
 			}
-			data = append(data, i)
+			content = append(content, i)
 		}
 	}
 
-	if len(data) > 0 {
-		createVisualization(ctrl, data, *xlimit, *prefix, index, cfg)
+	if len(content) > 0 {
+		createVisualization(ctrl, content, *xlimit, *prefix, index, cfg)
 	}
 
 }
