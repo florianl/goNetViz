@@ -5,6 +5,7 @@ import "io/ioutil"
 import "os"
 import "fmt"
 import "regexp"
+import "context"
 
 func TestGetBitsFromPacket(t *testing.T) {
 
@@ -48,15 +49,15 @@ func TestCheckConfig(t *testing.T) {
 		err     string
 	}{
 		// Testing different output stiles
-		{name: "Two Bits per Pixel", cfg: configs{2, 0, 0, 0, terminal, 1}, err: "-bits 2 is not divisible by three or one"},
-		{name: "One Bit per Pixel", cfg: configs{1, 0, 0, 0, terminal, 1}},
-		{name: "27 Bits per Pixel", cfg: configs{27, 0, 0, 0, terminal, 1}, err: "-bits 27 must be smaller than 25"},
-		{name: "Terminal only", cfg: configs{3, 0, 0, 0, terminal, 1}},
-		{name: "Terminal and Timeslize", cfg: configs{3, 0, 0, 0, (terminal | timeslize), 1}, console: true, err: "-timeslize and -terminal can't be combined"},
-		{name: "Fixed Slize", cfg: configs{1, 0, 0, 0, 0, 1}},
-		{name: "Time Slize", cfg: configs{1, 0, 50, 0, 0, 1}},
-		{name: "Scale and Terminal", cfg: configs{1, 0, 0, 0, terminal, 2}, console: true, err: "-scale and -terminal can't be combined"},
-		{name: "Time Slize", cfg: configs{1, 0, 50, 0, 0, 0}, err: "scale factor has to be at least 1"},
+		{name: "Two Bits per Pixel", cfg: configs{2, 0, 0, 0, terminal, 1, 1500}, err: "-bits 2 is not divisible by three or one"},
+		{name: "One Bit per Pixel", cfg: configs{1, 0, 0, 0, terminal, 1, 1500}},
+		{name: "27 Bits per Pixel", cfg: configs{27, 0, 0, 0, terminal, 1, 1500}, err: "-bits 27 must be smaller than 25"},
+		{name: "Terminal only", cfg: configs{3, 0, 0, 0, terminal, 1, 1500}},
+		{name: "Terminal and Timeslize", cfg: configs{3, 0, 0, 0, (terminal | timeslize), 1, 1500}, console: true, err: "-timeslize and -terminal can't be combined"},
+		{name: "Fixed Slize", cfg: configs{1, 0, 0, 0, 0, 1, 1500}},
+		{name: "Time Slize", cfg: configs{1, 0, 50, 0, 0, 1, 1500}},
+		{name: "Scale and Terminal", cfg: configs{1, 0, 0, 0, terminal, 2, 1500}, console: true, err: "-scale and -terminal can't be combined"},
+		{name: "Time Slize", cfg: configs{1, 0, 50, 0, 0, 0, 1500}, err: "scale factor has to be at least 1"},
 	}
 
 	for _, tc := range tests {
@@ -222,25 +223,30 @@ func TestCreateImage(t *testing.T) {
 		t.Errorf("Could not create temporary directory: %v", err)
 	}
 
+	ctx0, cancel0 := context.WithCancel(context.Background())
+	ctx1, cancel1 := context.WithCancel(context.Background())
+	ctx2, cancel2 := context.WithCancel(context.Background())
+
 	defer os.RemoveAll(dir)
 	tests := []struct {
 		name     string
+		ctrl     Context
 		filename string
 		width    int
 		height   int
 		data     string
 		err      string
 	}{
-		{name: "No Filename", filename: "", data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />", err: "Could not open image: open : no such file or directory"},
-		{name: "Just directory name", filename: dir, data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />", err: fmt.Sprintf("Could not open image: open %s: is a directory", dir)},
-		{name: "No Data", filename: fmt.Sprintf("%s/test.svg", dir), err: "No image data provided"},
+		{name: "No Filename", ctrl: Context{ctx: ctx0, cancel: cancel0}, filename: "", data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />", err: "Could not open image: open : no such file or directory"},
+		{name: "Just directory name", ctrl: Context{ctx: ctx1, cancel: cancel1}, filename: dir, data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />", err: fmt.Sprintf("Could not open image: open %s: is a directory", dir)},
+		{name: "No Data", ctrl: Context{ctx: ctx2, cancel: cancel2}, filename: fmt.Sprintf("%s/test.svg", dir), err: "No image data provided"},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			err := createImage(tc.filename, tc.width, tc.height, tc.data, 1, 1)
-			if err.Error() != tc.err {
-				t.Errorf("Expected: %v \t Got: %v", tc.err, err)
+			createImage(tc.ctrl, tc.filename, tc.width, tc.height, tc.data, 1, 1)
+			if tc.ctrl.err != nil && tc.ctrl.err.Error() != tc.err {
+				t.Errorf("Expected: %v \t Got: %v", tc.err, tc.ctrl.err.Error())
 			}
 		})
 	}
@@ -255,6 +261,7 @@ func TestCreateVisualization(t *testing.T) {
 
 	tests := []struct {
 		name   string
+		ctrl   Context
 		data   []Data
 		xLimit uint
 		prefix string
@@ -262,16 +269,16 @@ func TestCreateVisualization(t *testing.T) {
 		cfg    configs
 		err    string
 	}{
-		{name: "No Data", xLimit: 1, prefix: fmt.Sprintf("%s/noData", dir), num: 1, cfg: configs{1, 0, 0, 0, solder, 1}, err: "No image data provided"},
-		{name: "Solid image", data: []Data{{toa: 0, payload: []byte{0xCA, 0xFE, 0xBA, 0xBE}}}, xLimit: 1, prefix: fmt.Sprintf("%s/solid", dir), num: 1, cfg: configs{24, 0, 0, 0, solder, 1}},
-		{name: "Timeslize image", data: []Data{{toa: 0, payload: []byte{0xCA, 0xFE, 0xBA, 0xBE}}}, xLimit: 1, prefix: fmt.Sprintf("%s/timeslize", dir), num: 1, cfg: configs{24, 0, 0, 0, timeslize, 1}},
+		{name: "No Data", ctrl: Context{ctx: context.Background()}, xLimit: 1, prefix: fmt.Sprintf("%s/noData", dir), num: 1, cfg: configs{1, 0, 0, 0, solder, 1, 1500}, err: "No image data provided"},
+		{name: "Solid image", ctrl: Context{ctx: context.Background()}, data: []Data{{toa: 0, payload: []byte{0xCA, 0xFE, 0xBA, 0xBE}}}, xLimit: 1, prefix: fmt.Sprintf("%s/solid", dir), num: 1, cfg: configs{24, 0, 0, 0, solder, 1, 1500}},
+		{name: "Timeslize image", ctrl: Context{ctx: context.Background()}, data: []Data{{toa: 0, payload: []byte{0xCA, 0xFE, 0xBA, 0xBE}}}, xLimit: 1, prefix: fmt.Sprintf("%s/timeslize", dir), num: 1, cfg: configs{24, 0, 0, 0, timeslize, 1, 1500}},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			err := createVisualization(tc.data, tc.xLimit, tc.prefix, tc.num, tc.cfg)
-			if err != nil && err.Error() != tc.err {
-				t.Errorf("Expected: %v \t Got: %v", tc.err, err)
+			createVisualization(tc.ctrl, tc.data, tc.xLimit, tc.prefix, tc.num, tc.cfg)
+			if tc.ctrl.err != nil && tc.ctrl.err.Error() != tc.err {
+				t.Errorf("Expected: %v \t Got: %v", tc.err, tc.ctrl.err.Error())
 			} else {
 
 			}
@@ -281,19 +288,19 @@ func TestCreateVisualization(t *testing.T) {
 
 func TestCreateTerminalVisualization(t *testing.T) {
 	tests := []struct {
-		name         string
-		pkt1         Data
-		pkt2         Data
-		bitsPerPixel uint
+		name string
+		pkt1 Data
+		pkt2 Data
+		cfg  configs
 	}{
-		{name: "bytePos >= pkt1Len", pkt1: Data{toa: 0, payload: []byte{0x01}}, pkt2: Data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, bitsPerPixel: 3},
-		{name: "bytePos >= pkt2Len", pkt1: Data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, pkt2: Data{toa: 0, payload: []byte{0x01}}, bitsPerPixel: 3},
-		{name: "pkt1Len == pkt2Len", pkt1: Data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, pkt2: Data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, bitsPerPixel: 3},
+		{name: "bytePos >= pkt1Len", pkt1: Data{toa: 0, payload: []byte{0x01}}, pkt2: Data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, cfg: configs{3, 0, 0, 0, timeslize, 1, 1500}},
+		{name: "bytePos >= pkt2Len", pkt1: Data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, pkt2: Data{toa: 0, payload: []byte{0x01}}, cfg: configs{3, 0, 0, 0, timeslize, 1, 1500}},
+		{name: "pkt1Len == pkt2Len", pkt1: Data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, pkt2: Data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, cfg: configs{3, 0, 0, 0, timeslize, 1, 1500}},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			createTerminalVisualization(tc.pkt1, tc.pkt2, tc.bitsPerPixel)
+			createTerminalVisualization(tc.pkt1, tc.pkt2, tc.cfg)
 		})
 	}
 }
