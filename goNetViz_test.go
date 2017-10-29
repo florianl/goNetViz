@@ -259,6 +259,10 @@ func TestCreateVisualization(t *testing.T) {
 	}
 	defer os.RemoveAll(dir)
 
+	ctx0, cancel0 := context.WithCancel(context.Background())
+	ctx1, cancel1 := context.WithCancel(context.Background())
+	ctx2, cancel2 := context.WithCancel(context.Background())
+
 	tests := []struct {
 		name   string
 		ctrl   Context
@@ -269,9 +273,9 @@ func TestCreateVisualization(t *testing.T) {
 		cfg    configs
 		err    string
 	}{
-		{name: "No Data", ctrl: Context{ctx: context.Background()}, xLimit: 1, prefix: fmt.Sprintf("%s/noData", dir), num: 1, cfg: configs{1, 0, 0, 0, solder, 1, 1500}, err: "No image data provided"},
-		{name: "Solid image", ctrl: Context{ctx: context.Background()}, data: []Data{{toa: 0, payload: []byte{0xCA, 0xFE, 0xBA, 0xBE}}}, xLimit: 1, prefix: fmt.Sprintf("%s/solid", dir), num: 1, cfg: configs{24, 0, 0, 0, solder, 1, 1500}},
-		{name: "Timeslize image", ctrl: Context{ctx: context.Background()}, data: []Data{{toa: 0, payload: []byte{0xCA, 0xFE, 0xBA, 0xBE}}}, xLimit: 1, prefix: fmt.Sprintf("%s/timeslize", dir), num: 1, cfg: configs{24, 0, 0, 0, timeslize, 1, 1500}},
+		{name: "No Data", ctrl: Context{ctx: ctx0, cancel: cancel0}, xLimit: 1, prefix: fmt.Sprintf("%s/noData", dir), num: 1, cfg: configs{1, 0, 0, 0, solder, 1, 1500}, err: "No image data provided"},
+		{name: "Solid image", ctrl: Context{ctx: ctx1, cancel: cancel1}, data: []Data{{toa: 0, payload: []byte{0xCA, 0xFE, 0xBA, 0xBE}}}, xLimit: 1, prefix: fmt.Sprintf("%s/solid", dir), num: 1, cfg: configs{24, 0, 0, 0, solder, 1, 1500}},
+		{name: "Timeslize image", ctrl: Context{ctx: ctx2, cancel: cancel2}, data: []Data{{toa: 0, payload: []byte{0xCA, 0xFE, 0xBA, 0xBE}}}, xLimit: 1, prefix: fmt.Sprintf("%s/timeslize", dir), num: 1, cfg: configs{24, 0, 0, 0, timeslize, 1, 1500}},
 	}
 
 	for _, tc := range tests {
