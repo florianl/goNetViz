@@ -220,7 +220,7 @@ func createVisualization(ctrl ctrlCtx, content []data, xLimit uint, prefix strin
 	}
 	filename += ".svg"
 
-	go createImage(ctrl, filename, (xMax+1)*scale, (yPos+1)*scale, svg.String(), scale, bitsPerPixel)
+	createImage(ctrl, filename, (xMax+1)*scale, (yPos+1)*scale, svg.String(), scale, bitsPerPixel)
 }
 
 func handlePackets(ctrl ctrlCtx, ps *gopacket.PacketSource, num uint, ch chan<- data) {
