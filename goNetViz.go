@@ -8,6 +8,7 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
+	"golang.org/x/sync/errgroup"
 	"os"
 	"os/signal"
 	"time"
@@ -37,12 +38,6 @@ type configs struct {
 	stil   uint // Type of illustration
 	scale  uint // Scaling factor for output
 	xlimit uint // Limit of bytes per packet
-}
-
-type ctrlCtx struct {
-	ctx    context.Context
-	cancel context.CancelFunc
-	err    error
 }
 
 func getBitsFromPacket(packet []byte, byteP, bitP *int, bpP uint) uint8 {
@@ -119,57 +114,43 @@ func createTerminalVisualization(pkt1, pkt2 data, cfg configs) {
 
 }
 
-func createImage(ctrl ctrlCtx, filename string, width, height int, content string, scale int, bitsPerPixel int) {
+func createImage(filename string, width, height int, content string, scale int, bitsPerPixel int) {
 	if len(content) == 0 {
-		ctrl.err = fmt.Errorf("No image data provided")
-		ctrl.cancel()
 		return
 	}
 
 	f, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
-		ctrl.err = err
-		ctrl.cancel()
 		return
 	}
 
 	if _, err := f.WriteString(fmt.Sprintf("<?xml version=\"1.0\"?>\n<svg width=\"%d\" height=\"%d\">\n", width, height)); err != nil {
 		f.Close()
-		ctrl.err = err
-		ctrl.cancel()
 		return
 	}
 
 	if _, err := f.WriteString(fmt.Sprintf("<!--\n\tgoNetViz \"%s\"\n\tScale=%d\n\tBitsPerPixel=%d\n-->\n",
 		Version, scale, bitsPerPixel)); err != nil {
 		f.Close()
-		ctrl.err = err
-		ctrl.cancel()
 		return
 	}
 
 	if _, err := f.WriteString(content); err != nil {
 		f.Close()
-		ctrl.err = err
-		ctrl.cancel()
 		return
 	}
 
 	if _, err := f.WriteString("</svg>"); err != nil {
 		f.Close()
-		ctrl.err = err
-		ctrl.cancel()
 		return
 	}
 
 	if err := f.Close(); err != nil {
-		ctrl.err = err
-		ctrl.cancel()
 		return
 	}
 }
 
-func createVisualization(ctrl ctrlCtx, content []data, xLimit uint, prefix string, num uint, cfg configs) {
+func createVisualization(g *errgroup.Group, content []data, xLimit uint, prefix string, num uint, cfg configs) {
 	var xPos int
 	var yPos int = -1
 	var bitPos int
@@ -220,18 +201,12 @@ func createVisualization(ctrl ctrlCtx, content []data, xLimit uint, prefix strin
 	}
 	filename += ".svg"
 
-	createImage(ctrl, filename, (xMax+1)*scale, (yPos+1)*scale, svg.String(), scale, bitsPerPixel)
+	createImage(filename, (xMax+1)*scale, (yPos+1)*scale, svg.String(), scale, bitsPerPixel)
 }
 
-func handlePackets(ctrl ctrlCtx, ps *gopacket.PacketSource, num uint, ch chan<- data) {
+func handlePackets(g *errgroup.Group, ps *gopacket.PacketSource, num uint, ch chan<- data) {
 	var count uint
 	for packet := range ps.Packets() {
-		select {
-		case <-ctrl.ctx.Done():
-			close(ch)
-			return
-		default:
-		}
 		count++
 		if num != 0 && count > num {
 			break
@@ -333,27 +308,20 @@ func main() {
 	var slicer int64
 	var cfg configs
 	ch := make(chan data)
-	ctx, cancel := context.WithCancel(context.Background())
-	ctrl := ctrlCtx{
-		ctx:    ctx,
-		cancel: cancel,
-		err:    nil,
-	}
+	g, ctx := errgroup.WithContext(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
 	osSig := make(chan os.Signal)
 	signal.Notify(osSig, os.Interrupt)
 	defer func() {
 		signal.Stop(osSig)
-		ctrl.cancel()
+		cancel()
 	}()
 
 	go func() {
 		select {
 		case <-osSig:
-			ctrl.cancel()
-		case <-ctrl.ctx.Done():
-			if ctrl.err != nil {
-				fmt.Println(ctrl.err.Error())
-			}
+			cancel()
+		case <-ctx.Done():
 			return
 		}
 	}()
@@ -416,14 +384,14 @@ func main() {
 	packetSource := gopacket.NewPacketSource(handle, layers.LayerTypeEthernet)
 	packetSource.DecodeOptions = gopacket.Lazy
 
-	go handlePackets(ctrl, packetSource, cfg.limit, ch)
+	go handlePackets(g, packetSource, cfg.limit, ch)
 
 	switch cfg.stil {
 	case solder:
 		for i, ok := <-ch; ok; i, ok = <-ch {
 			content = append(content, i)
 			if len(content) >= int(cfg.ppI) {
-				createVisualization(ctrl, content, *xlimit, *prefix, index, cfg)
+				createVisualization(g, content, *xlimit, *prefix, index, cfg)
 				index++
 				content = content[:0]
 			}
@@ -445,7 +413,7 @@ func main() {
 				slicer = i.toa + int64(*ts)
 			}
 			if slicer < i.toa {
-				createVisualization(ctrl, content, *xlimit, *prefix, 0, cfg)
+				createVisualization(g, content, *xlimit, *prefix, 0, cfg)
 				content = content[:0]
 				slicer = i.toa + int64(*ts)
 			}
@@ -454,7 +422,12 @@ func main() {
 	}
 
 	if len(content) > 0 {
-		createVisualization(ctrl, content, *xlimit, *prefix, index, cfg)
+		createVisualization(g, content, *xlimit, *prefix, index, cfg)
+	}
+
+	if err := g.Wait(); err != nil {
+		fmt.Println("Error while waiting for errorgroup:", err)
+		return
 	}
 
 }
