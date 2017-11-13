@@ -6,6 +6,7 @@ import "os"
 import "fmt"
 import "regexp"
 import "context"
+import "golang.org/x/sync/errgroup"
 
 func TestGetBitsFromPacket(t *testing.T) {
 
@@ -223,31 +224,22 @@ func TestCreateImage(t *testing.T) {
 		t.Errorf("Could not create temporary directory: %v", err)
 	}
 
-	ctx0, cancel0 := context.WithCancel(context.Background())
-	ctx1, cancel1 := context.WithCancel(context.Background())
-	ctx2, cancel2 := context.WithCancel(context.Background())
-
 	defer os.RemoveAll(dir)
 	tests := []struct {
 		name     string
-		ctrl     ctrlCtx
 		filename string
 		width    int
 		height   int
 		data     string
-		err      string
 	}{
-		{name: "No Filename", ctrl: ctrlCtx{ctx: ctx0, cancel: cancel0}, filename: "", data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />", err: "Could not open image: open : no such file or directory"},
-		{name: "Just directory name", ctrl: ctrlCtx{ctx: ctx1, cancel: cancel1}, filename: dir, data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />", err: fmt.Sprintf("Could not open image: open %s: is a directory", dir)},
-		{name: "No Data", ctrl: ctrlCtx{ctx: ctx2, cancel: cancel2}, filename: fmt.Sprintf("%s/test.svg", dir), err: "No image data provided"},
+		{name: "No Filename", filename: "", data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />"},
+		{name: "Just directory name", filename: dir, data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />"},
+		{name: "No Data", filename: fmt.Sprintf("%s/test.svg", dir)},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			createImage(tc.ctrl, tc.filename, tc.width, tc.height, tc.data, 1, 1)
-			if tc.ctrl.err != nil && tc.ctrl.err.Error() != tc.err {
-				t.Errorf("Expected: %v \t Got: %v", tc.err, tc.ctrl.err.Error())
-			}
+			createImage(tc.filename, tc.width, tc.height, tc.data, 1, 1)
 		})
 	}
 }
@@ -259,13 +251,8 @@ func TestCreateVisualization(t *testing.T) {
 	}
 	defer os.RemoveAll(dir)
 
-	ctx0, cancel0 := context.WithCancel(context.Background())
-	ctx1, cancel1 := context.WithCancel(context.Background())
-	ctx2, cancel2 := context.WithCancel(context.Background())
-
 	tests := []struct {
 		name    string
-		ctrl    ctrlCtx
 		content []data
 		xLimit  uint
 		prefix  string
@@ -273,19 +260,15 @@ func TestCreateVisualization(t *testing.T) {
 		cfg     configs
 		err     string
 	}{
-		{name: "No Data", ctrl: ctrlCtx{ctx: ctx0, cancel: cancel0}, xLimit: 1, prefix: fmt.Sprintf("%s/noData", dir), num: 1, cfg: configs{1, 0, 0, 0, solder, 1, 1500}, err: "No image data provided"},
-		{name: "Solid image", ctrl: ctrlCtx{ctx: ctx1, cancel: cancel1}, content: []data{{toa: 0, payload: []byte{0xCA, 0xFE, 0xBA, 0xBE}}}, xLimit: 1, prefix: fmt.Sprintf("%s/solid", dir), num: 1, cfg: configs{24, 0, 0, 0, solder, 1, 1500}},
-		{name: "Timeslize image", ctrl: ctrlCtx{ctx: ctx2, cancel: cancel2}, content: []data{{toa: 0, payload: []byte{0xCA, 0xFE, 0xBA, 0xBE}}}, xLimit: 1, prefix: fmt.Sprintf("%s/timeslize", dir), num: 1, cfg: configs{24, 0, 0, 0, timeslize, 1, 1500}},
+		{name: "No Data", xLimit: 1, prefix: fmt.Sprintf("%s/noData", dir), num: 1, cfg: configs{1, 0, 0, 0, solder, 1, 1500}, err: "No image data provided"},
+		{name: "Solid image", content: []data{{toa: 0, payload: []byte{0xCA, 0xFE, 0xBA, 0xBE}}}, xLimit: 1, prefix: fmt.Sprintf("%s/solid", dir), num: 1, cfg: configs{24, 0, 0, 0, solder, 1, 1500}},
+		{name: "Timeslize image", content: []data{{toa: 0, payload: []byte{0xCA, 0xFE, 0xBA, 0xBE}}}, xLimit: 1, prefix: fmt.Sprintf("%s/timeslize", dir), num: 1, cfg: configs{24, 0, 0, 0, timeslize, 1, 1500}},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			createVisualization(tc.ctrl, tc.content, tc.xLimit, tc.prefix, tc.num, tc.cfg)
-			if tc.ctrl.err != nil && tc.ctrl.err.Error() != tc.err {
-				t.Errorf("Expected: %v \t Got: %v", tc.err, tc.ctrl.err.Error())
-			} else {
-
-			}
+			g, _ := errgroup.WithContext(context.Background())
+			createVisualization(g, tc.content, tc.xLimit, tc.prefix, tc.num, tc.cfg)
 		})
 	}
 }
