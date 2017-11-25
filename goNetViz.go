@@ -114,40 +114,41 @@ func createTerminalVisualization(pkt1, pkt2 data, cfg configs) {
 
 }
 
-func createImage(filename string, width, height int, content string, scale int, bitsPerPixel int) {
+func createImage(filename string, width, height int, content string, scale int, bitsPerPixel int) error {
 	if len(content) == 0 {
-		return
+		return fmt.Errorf("No content to write")
 	}
 
 	f, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0644)
 	if err != nil {
-		return
+		return fmt.Errorf("Could not open file %s: %s", filename, err.Error())
 	}
 
 	if _, err := f.WriteString(fmt.Sprintf("<?xml version=\"1.0\"?>\n<svg width=\"%d\" height=\"%d\">\n", width, height)); err != nil {
 		f.Close()
-		return
+		return fmt.Errorf("Could not write header: %s", err.Error())
 	}
 
 	if _, err := f.WriteString(fmt.Sprintf("<!--\n\tgoNetViz \"%s\"\n\tScale=%d\n\tBitsPerPixel=%d\n-->\n",
 		Version, scale, bitsPerPixel)); err != nil {
 		f.Close()
-		return
+		return fmt.Errorf("Could not write additional information: %s", err.Error())
 	}
 
 	if _, err := f.WriteString(content); err != nil {
 		f.Close()
-		return
+		return fmt.Errorf("Could not write content: %s", err.Error())
 	}
 
 	if _, err := f.WriteString("</svg>"); err != nil {
 		f.Close()
-		return
+		return fmt.Errorf("Could not write closing information: %s", err.Error())
 	}
 
 	if err := f.Close(); err != nil {
-		return
+		return fmt.Errorf("Could not close file %s: %s", filename, err.Error())
 	}
+	return nil
 }
 
 func createVisualization(g *errgroup.Group, content []data, xLimit uint, prefix string, num uint, cfg configs) {
@@ -201,7 +202,9 @@ func createVisualization(g *errgroup.Group, content []data, xLimit uint, prefix 
 	}
 	filename += ".svg"
 
-	createImage(filename, (xMax+1)*scale, (yPos+1)*scale, svg.String(), scale, bitsPerPixel)
+	g.Go(func() error {
+		return createImage(filename, (xMax+1)*scale, (yPos+1)*scale, svg.String(), scale, bitsPerPixel)
+	})
 }
 
 func handlePackets(g *errgroup.Group, ps *gopacket.PacketSource, num uint, ch chan<- data) {
