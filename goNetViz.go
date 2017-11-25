@@ -119,7 +119,7 @@ func createImage(filename string, width, height int, content string, scale int, 
 		return
 	}
 
-	f, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0644)
+	f, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0644)
 	if err != nil {
 		return
 	}
