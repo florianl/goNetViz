@@ -364,7 +364,7 @@ func main() {
 	}
 
 	if *help {
-		fmt.Println(os.Args[0], "[-bits ...] [-count ...] [-file ... | -interface ...] [-filter ...] [-list_interfaces] [-help] [-prefix ...] [-scale ...] [-size ... | -timeslize ... | -terminal] [-version]")
+		fmt.Println(os.Args[0], "[-list_interfaces] [-help] [-version]\n\t[-bits ...] [-count ...] [-limit ...] [-file ... |-interface ...] [-filter ...] [-prefix ...] [-scale ...] [-size ... | -timeslize ... |-terminal]\n")
 		flag.PrintDefaults()
 		return
 	}
