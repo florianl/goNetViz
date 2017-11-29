@@ -50,15 +50,15 @@ func TestCheckConfig(t *testing.T) {
 		err     string
 	}{
 		// Testing different output stiles
-		{name: "Two Bits per Pixel", cfg: configs{2, 0, 0, 0, terminal, 1, 1500}, err: "-bits 2 is not divisible by three or one"},
-		{name: "One Bit per Pixel", cfg: configs{1, 0, 0, 0, terminal, 1, 1500}},
-		{name: "27 Bits per Pixel", cfg: configs{27, 0, 0, 0, terminal, 1, 1500}, err: "-bits 27 must be smaller than 25"},
-		{name: "Terminal only", cfg: configs{3, 0, 0, 0, terminal, 1, 1500}},
-		{name: "Terminal and Timeslize", cfg: configs{3, 0, 0, 0, (terminal | timeslize), 1, 1500}, console: true, err: "-timeslize and -terminal can't be combined"},
-		{name: "Fixed Slize", cfg: configs{1, 0, 0, 0, 0, 1, 1500}},
-		{name: "Time Slize", cfg: configs{1, 0, 50, 0, 0, 1, 1500}},
-		{name: "Scale and Terminal", cfg: configs{1, 0, 0, 0, terminal, 2, 1500}, console: true, err: "-scale and -terminal can't be combined"},
-		{name: "Time Slize", cfg: configs{1, 0, 50, 0, 0, 0, 1500}, err: "scale factor has to be at least 1"},
+		{name: "Two Bits per Pixel", cfg: configs{2, 0, 0, 0, terminal, 1, 1500, "dev", "filter", "file", "prefix"}, err: "-bits 2 is not divisible by three or one"},
+		{name: "One Bit per Pixel", cfg: configs{1, 0, 0, 0, terminal, 1, 1500, "dev", "filter", "file", "prefix"}},
+		{name: "27 Bits per Pixel", cfg: configs{27, 0, 0, 0, terminal, 1, 1500, "dev", "filter", "file", "prefix"}, err: "-bits 27 must be smaller than 25"},
+		{name: "Terminal only", cfg: configs{3, 0, 0, 0, terminal, 1, 1500, "dev", "filter", "file", "prefix"}},
+		{name: "Terminal and Timeslize", cfg: configs{3, 0, 0, 0, (terminal | timeslize), 1, 1500, "dev", "filter", "file", "prefix"}, console: true, err: "-timeslize and -terminal can't be combined"},
+		{name: "Fixed Slize", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "dev", "filter", "file", "prefix"}},
+		{name: "Time Slize", cfg: configs{1, 0, 50, 0, 0, 1, 1500, "dev", "filter", "file", "prefix"}},
+		{name: "Scale and Terminal", cfg: configs{1, 0, 0, 0, terminal, 2, 1500, "dev", "filter", "file", "prefix"}, console: true, err: "-scale and -terminal can't be combined"},
+		{name: "Time Slize", cfg: configs{1, 0, 50, 0, 0, 0, 1500, "dev", "filter", "file", "prefix"}, err: "scale factor has to be at least 1"},
 	}
 
 	for _, tc := range tests {
@@ -204,7 +204,7 @@ func TestInitSource(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := initSource(&(tc.dev), &(tc.file), &(tc.filter))
+			_, err := initSource(tc.dev, tc.file, tc.filter)
 			if err != nil {
 				if matched, _ := regexp.MatchString(tc.err, err.Error()); matched == false {
 					t.Errorf("Error matching regex: %v \t Got: %v", tc.err, err)
@@ -260,15 +260,15 @@ func TestCreateVisualization(t *testing.T) {
 		cfg     configs
 		err     string
 	}{
-		{name: "No Data", xLimit: 1, prefix: fmt.Sprintf("%s/noData", dir), num: 1, cfg: configs{1, 0, 0, 0, solder, 1, 1500}, err: "No image data provided"},
-		{name: "Solid image", content: []data{{toa: 0, payload: []byte{0xCA, 0xFE, 0xBA, 0xBE}}}, xLimit: 1, prefix: fmt.Sprintf("%s/solid", dir), num: 1, cfg: configs{24, 0, 0, 0, solder, 1, 1500}},
-		{name: "Timeslize image", content: []data{{toa: 0, payload: []byte{0xCA, 0xFE, 0xBA, 0xBE}}}, xLimit: 1, prefix: fmt.Sprintf("%s/timeslize", dir), num: 1, cfg: configs{24, 0, 0, 0, timeslize, 1, 1500}},
+		{name: "No Data", xLimit: 1, prefix: fmt.Sprintf("%s/noData", dir), num: 1, cfg: configs{1, 0, 0, 0, solder, 1, 1500, "dev", "filter", "file", "prefix"}, err: "No image data provided"},
+		{name: "Solid image", content: []data{{toa: 0, payload: []byte{0xCA, 0xFE, 0xBA, 0xBE}}}, xLimit: 1, prefix: fmt.Sprintf("%s/solid", dir), num: 1, cfg: configs{24, 0, 0, 0, solder, 1, 1500, "dev", "filter", "file", "prefix"}},
+		{name: "Timeslize image", content: []data{{toa: 0, payload: []byte{0xCA, 0xFE, 0xBA, 0xBE}}}, xLimit: 1, prefix: fmt.Sprintf("%s/timeslize", dir), num: 1, cfg: configs{24, 0, 0, 0, timeslize, 1, 1500, "dev", "filter", "file", "prefix"}},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			g, _ := errgroup.WithContext(context.Background())
-			createVisualization(g, tc.content, tc.prefix, tc.num, tc.cfg)
+			createVisualization(g, tc.content, tc.num, tc.cfg)
 		})
 	}
 }
@@ -280,9 +280,9 @@ func TestCreateTerminalVisualization(t *testing.T) {
 		pkt2 data
 		cfg  configs
 	}{
-		{name: "bytePos >= pkt1Len", pkt1: data{toa: 0, payload: []byte{0x01}}, pkt2: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, cfg: configs{3, 0, 0, 0, timeslize, 1, 1500}},
-		{name: "bytePos >= pkt2Len", pkt1: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, pkt2: data{toa: 0, payload: []byte{0x01}}, cfg: configs{3, 0, 0, 0, timeslize, 1, 1500}},
-		{name: "pkt1Len == pkt2Len", pkt1: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, pkt2: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, cfg: configs{3, 0, 0, 0, timeslize, 1, 1500}},
+		{name: "bytePos >= pkt1Len", pkt1: data{toa: 0, payload: []byte{0x01}}, pkt2: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, cfg: configs{3, 0, 0, 0, timeslize, 1, 1500, "dev", "filter", "file", "prefix"}},
+		{name: "bytePos >= pkt2Len", pkt1: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, pkt2: data{toa: 0, payload: []byte{0x01}}, cfg: configs{3, 0, 0, 0, timeslize, 1, 1500, "dev", "filter", "file", "prefix"}},
+		{name: "pkt1Len == pkt2Len", pkt1: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, pkt2: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, cfg: configs{3, 0, 0, 0, timeslize, 1, 1500, "dev", "filter", "file", "prefix"}},
 	}
 
 	for _, tc := range tests {

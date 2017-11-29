@@ -31,13 +31,17 @@ type data struct {
 
 // configs represents all the configuration data
 type configs struct {
-	bpP    uint // Bits per Pixel
-	ppI    uint // Number of packets per Image
-	ts     uint // "Duration" for one Image
-	limit  uint // Number of network packets to process
-	stil   uint // Type of illustration
-	scale  uint // Scaling factor for output
-	xlimit uint // Limit of bytes per packet
+	bpP    uint   // Bits per Pixel
+	ppI    uint   // Number of packets per Image
+	ts     int64  // "Duration" for one Image
+	limit  uint   // Number of network packets to process
+	stil   uint   // Type of illustration
+	scale  uint   // Scaling factor for output
+	xlimit uint   // Limit of bytes per packet
+	dev    string // network interface as source of visualization
+	filter string // filter for the network interface
+	file   string //  file as source of visualization
+	prefix string // prefix for the visualization results
 }
 
 func getBitsFromPacket(packet []byte, byteP, bitP *int, bpP uint) uint8 {
@@ -151,7 +155,7 @@ func createImage(filename string, width, height int, content string, scale int, 
 	return nil
 }
 
-func createVisualization(g *errgroup.Group, content []data, prefix string, num uint, cfg configs) {
+func createVisualization(g *errgroup.Group, content []data, num uint, cfg configs) {
 	var xPos int
 	var yPos int = -1
 	var bitPos int
@@ -162,6 +166,7 @@ func createVisualization(g *errgroup.Group, content []data, prefix string, num u
 	var bitsPerPixel int = int(cfg.bpP)
 	var scale int = int(cfg.scale)
 	var xLimit uint = cfg.xlimit
+	var prefix string = cfg.prefix
 	var xMax int
 
 	for pkg := range content {
@@ -246,14 +251,14 @@ func availableInterfaces() error {
 	return nil
 }
 
-func initSource(dev, file *string, filter *string) (handle *pcap.Handle, err error) {
-	if len(*dev) > 0 {
-		handle, err = pcap.OpenLive(*dev, 4096, true, -10*time.Microsecond)
+func initSource(dev, file, filter string) (handle *pcap.Handle, err error) {
+	if len(dev) > 0 {
+		handle, err = pcap.OpenLive(dev, 4096, true, -10*time.Microsecond)
 		if err != nil {
 			return nil, fmt.Errorf("%s", err)
 		}
-	} else if len(*file) > 0 {
-		handle, err = pcap.OpenOffline(*file)
+	} else if len(file) > 0 {
+		handle, err = pcap.OpenOffline(file)
 		if err != nil {
 			return nil, fmt.Errorf("%s", err)
 		}
@@ -261,10 +266,10 @@ func initSource(dev, file *string, filter *string) (handle *pcap.Handle, err err
 		return nil, fmt.Errorf("Source is missing\n")
 	}
 
-	if len(*filter) != 0 {
-		err = handle.SetBPFFilter(*filter)
+	if len(filter) != 0 {
+		err = handle.SetBPFFilter(filter)
 		if err != nil {
-			return nil, fmt.Errorf("%s\nInvalid Filter: %s", err, *filter)
+			return nil, fmt.Errorf("%s\nInvalid Filter: %s", err, filter)
 		}
 	}
 
@@ -308,14 +313,70 @@ func checkConfig(cfg *configs, console bool) error {
 	return nil
 }
 
-func main() {
-	var err error
-	var handle *pcap.Handle
+func visualize(g *errgroup.Group, cfg configs) error {
+	ch := make(chan data)
 	var content []data
 	var index uint = 1
 	var slicer int64
+
+	handle, err := initSource(cfg.dev, cfg.file, cfg.filter)
+	if err != nil {
+		return err
+	}
+	defer handle.Close()
+
+	packetSource := gopacket.NewPacketSource(handle, layers.LayerTypeEthernet)
+	packetSource.DecodeOptions = gopacket.Lazy
+
+	go handlePackets(g, packetSource, cfg.limit, ch)
+
+	switch cfg.stil {
+	case solder:
+		for i, ok := <-ch; ok; i, ok = <-ch {
+			content = append(content, i)
+			if len(content) >= int(cfg.ppI) {
+				createVisualization(g, content, index, cfg)
+				index++
+				content = content[:0]
+			}
+		}
+	case terminal:
+		for i, ok := <-ch; ok; i, ok = <-ch {
+			var j data
+			j, ok = <-ch
+			if !ok {
+				createTerminalVisualization(i, data{toa: 0, payload: nil}, cfg)
+				break
+			} else {
+				createTerminalVisualization(i, j, cfg)
+			}
+		}
+	case timeslize:
+		for i, ok := <-ch; ok; i, ok = <-ch {
+			if slicer == 0 {
+				slicer = i.toa + int64(cfg.ts)
+			}
+			if slicer < i.toa {
+				createVisualization(g, content, 0, cfg)
+				content = content[:0]
+				slicer = i.toa + int64(cfg.ts)
+			}
+			content = append(content, i)
+		}
+	}
+
+	if len(content) > 0 {
+		createVisualization(g, content, index, cfg)
+	}
+
+	if err := g.Wait(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func main() {
 	var cfg configs
-	ch := make(chan data)
 	g, ctx := errgroup.WithContext(context.Background())
 	ctx, cancel := context.WithCancel(ctx)
 	osSig := make(chan os.Signal)
@@ -351,8 +412,7 @@ func main() {
 	flag.Parse()
 
 	if *lst {
-		err = availableInterfaces()
-		if err != nil {
+		if err := availableInterfaces(); err != nil {
 			fmt.Println("Could not list interfaces:", err)
 		}
 		return
@@ -371,70 +431,23 @@ func main() {
 
 	cfg.bpP = *bits
 	cfg.ppI = *size
-	cfg.ts = *ts
+	cfg.ts = int64(*ts)
 	cfg.limit = *num
 	cfg.stil = 0
 	cfg.scale = *scale
 	cfg.xlimit = *xlimit
+	cfg.dev = *dev
+	cfg.file = *file
+	cfg.filter = *filter
+	cfg.prefix = *prefix
 
-	if err = checkConfig(&cfg, *terminalOut); err != nil {
+	if err := checkConfig(&cfg, *terminalOut); err != nil {
 		fmt.Println("Configuration error:", err)
 		return
 	}
 
-	handle, err = initSource(dev, file, filter)
-	if err != nil {
-		fmt.Println("Could not open source:", err)
-		return
-	}
-	defer handle.Close()
-
-	packetSource := gopacket.NewPacketSource(handle, layers.LayerTypeEthernet)
-	packetSource.DecodeOptions = gopacket.Lazy
-
-	go handlePackets(g, packetSource, cfg.limit, ch)
-
-	switch cfg.stil {
-	case solder:
-		for i, ok := <-ch; ok; i, ok = <-ch {
-			content = append(content, i)
-			if len(content) >= int(cfg.ppI) {
-				createVisualization(g, content, *prefix, index, cfg)
-				index++
-				content = content[:0]
-			}
-		}
-	case terminal:
-		for i, ok := <-ch; ok; i, ok = <-ch {
-			var j data
-			j, ok = <-ch
-			if !ok {
-				createTerminalVisualization(i, data{toa: 0, payload: nil}, cfg)
-				break
-			} else {
-				createTerminalVisualization(i, j, cfg)
-			}
-		}
-	case timeslize:
-		for i, ok := <-ch; ok; i, ok = <-ch {
-			if slicer == 0 {
-				slicer = i.toa + int64(*ts)
-			}
-			if slicer < i.toa {
-				createVisualization(g, content, *prefix, 0, cfg)
-				content = content[:0]
-				slicer = i.toa + int64(*ts)
-			}
-			content = append(content, i)
-		}
-	}
-
-	if len(content) > 0 {
-		createVisualization(g, content, *prefix, index, cfg)
-	}
-
-	if err := g.Wait(); err != nil {
-		fmt.Println("Error while waiting for errorgroup:", err)
+	if err := visualize(g, cfg); err != nil {
+		fmt.Println("Configuration error:", err)
 		return
 	}
 
