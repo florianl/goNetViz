@@ -268,7 +268,7 @@ func TestCreateVisualization(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			g, _ := errgroup.WithContext(context.Background())
-			createVisualization(g, tc.content, tc.xLimit, tc.prefix, tc.num, tc.cfg)
+			createVisualization(g, tc.content, tc.prefix, tc.num, tc.cfg)
 		})
 	}
 }

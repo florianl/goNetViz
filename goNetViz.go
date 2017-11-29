@@ -151,7 +151,7 @@ func createImage(filename string, width, height int, content string, scale int, 
 	return nil
 }
 
-func createVisualization(g *errgroup.Group, content []data, xLimit uint, prefix string, num uint, cfg configs) {
+func createVisualization(g *errgroup.Group, content []data, prefix string, num uint, cfg configs) {
 	var xPos int
 	var yPos int = -1
 	var bitPos int
@@ -161,6 +161,7 @@ func createVisualization(g *errgroup.Group, content []data, xLimit uint, prefix 
 	var svg bytes.Buffer
 	var bitsPerPixel int = int(cfg.bpP)
 	var scale int = int(cfg.scale)
+	var xLimit uint = cfg.xlimit
 	var xMax int
 
 	for pkg := range content {
@@ -300,6 +301,10 @@ func checkConfig(cfg *configs, console bool) error {
 		return fmt.Errorf("scale factor has to be at least 1")
 	}
 
+	if cfg.xlimit > 9000 {
+		return fmt.Errorf("limit has to be smallerthan a Jumbo frame (9000 bytes)")
+	}
+
 	return nil
 }
 
@@ -394,7 +399,7 @@ func main() {
 		for i, ok := <-ch; ok; i, ok = <-ch {
 			content = append(content, i)
 			if len(content) >= int(cfg.ppI) {
-				createVisualization(g, content, *xlimit, *prefix, index, cfg)
+				createVisualization(g, content, *prefix, index, cfg)
 				index++
 				content = content[:0]
 			}
@@ -416,7 +421,7 @@ func main() {
 				slicer = i.toa + int64(*ts)
 			}
 			if slicer < i.toa {
-				createVisualization(g, content, *xlimit, *prefix, 0, cfg)
+				createVisualization(g, content, *prefix, 0, cfg)
 				content = content[:0]
 				slicer = i.toa + int64(*ts)
 			}
@@ -425,7 +430,7 @@ func main() {
 	}
 
 	if len(content) > 0 {
-		createVisualization(g, content, *xlimit, *prefix, index, cfg)
+		createVisualization(g, content, *prefix, index, cfg)
 	}
 
 	if err := g.Wait(); err != nil {
