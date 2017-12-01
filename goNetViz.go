@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"flag"
@@ -8,6 +9,7 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
+	"github.com/google/gopacket/pcapgo"
 	"golang.org/x/sync/errgroup"
 	"os"
 	"os/signal"
@@ -18,6 +20,7 @@ const (
 	solder    = 0x01
 	terminal  = 0x02
 	timeslize = 0x04
+	reverse   = 0x08
 )
 
 // Version number of this tool
@@ -276,10 +279,14 @@ func initSource(dev, file, filter string) (handle *pcap.Handle, err error) {
 	return
 }
 
-func checkConfig(cfg *configs, console bool) error {
+func checkConfig(cfg *configs, console, rebuild bool) error {
 
 	if console {
 		cfg.stil |= terminal
+	}
+
+	if rebuild {
+		cfg.stil |= reverse
 	}
 
 	if cfg.bpP%3 != 0 && cfg.bpP != 1 {
@@ -375,6 +382,38 @@ func visualize(g *errgroup.Group, cfg configs) error {
 	return nil
 }
 
+func extractInformation(g *errgroup.Group, ch chan []byte, cfg configs) {
+	inputfile, _ := os.Open(cfg.file)
+	defer inputfile.Close()
+	svg := bufio.NewScanner(inputfile)
+
+	for svg.Scan() {
+		fmt.Println(svg.Text())
+	}
+}
+
+func createPcap(g *errgroup.Group, ch chan []byte, cfg configs) {
+	filename := cfg.prefix
+	filename += ".pcap"
+	output, _ := os.Create(filename)
+	defer output.Close()
+	w := pcapgo.NewWriter(output)
+	w.WriteFileHeader(65536, layers.LinkTypeEthernet)
+
+	for i, ok := <-ch; ok; i, ok = <-ch {
+		w.WritePacket(gopacket.CaptureInfo{CaptureLength: len(i), Length: len(i), InterfaceIndex: 0}, i)
+	}
+}
+
+func reconstruct(g *errgroup.Group, cfg configs) error {
+	ch := make(chan []byte)
+
+	go extractInformation(g, ch, cfg)
+	createPcap(g, ch, cfg)
+
+	return nil
+}
+
 func main() {
 	var cfg configs
 	g, ctx := errgroup.WithContext(context.Background())
@@ -409,6 +448,7 @@ func main() {
 	ts := flag.Uint("timeslize", 0, "Number of microseconds per resulting image.\n\tSo each pixel of the height of the resulting image represents one microsecond.")
 	scale := flag.Uint("scale", 1, "Scaling factor for output.\n\tWorks not for output on terminal.")
 	xlimit := flag.Uint("limit", 1500, "Maximim number of bytes per packet.\n\tIf your MTU is higher than the default value of 1500 you might change this value.")
+	rebuild := flag.Bool("reverse", false, "Create a pcap from a svg")
 	flag.Parse()
 
 	if *lst {
@@ -441,14 +481,21 @@ func main() {
 	cfg.filter = *filter
 	cfg.prefix = *prefix
 
-	if err := checkConfig(&cfg, *terminalOut); err != nil {
+	if err := checkConfig(&cfg, *terminalOut, *rebuild); err != nil {
 		fmt.Println("Configuration error:", err)
 		return
 	}
 
-	if err := visualize(g, cfg); err != nil {
-		fmt.Println("Configuration error:", err)
-		return
+	if cfg.stil&reverse == cfg.stil {
+		if err := reconstruct(g, cfg); err != nil {
+			fmt.Println("Visualizon error:", err)
+			return
+		}
+	} else {
+		if err := visualize(g, cfg); err != nil {
+			fmt.Println("Visualizon error:", err)
+			return
+		}
 	}
 
 }
