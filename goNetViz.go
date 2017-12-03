@@ -13,6 +13,8 @@ import (
 	"golang.org/x/sync/errgroup"
 	"os"
 	"os/signal"
+	"regexp"
+	"strconv"
 	"time"
 )
 
@@ -382,14 +384,80 @@ func visualize(g *errgroup.Group, cfg configs) error {
 	return nil
 }
 
-func extractInformation(g *errgroup.Group, ch chan []byte, cfg configs) {
+func createPacket(ch chan []byte, packet []int, bpP int) error {
+	var buf []byte
+	switch bpP {
+	case 24:
+		for _, i := range packet {
+			buf = append(buf, byte(i))
+		}
+	default:
+		return fmt.Errorf("This format is not supported so far")
+	}
+
+	ch <- buf
+
+	return nil
+}
+
+func extractInformation(g *errgroup.Group, ch chan []byte, cfg configs) error {
 	inputfile, _ := os.Open(cfg.file)
 	defer inputfile.Close()
 	svg := bufio.NewScanner(inputfile)
+	var limitX, limitY, bpP int
+	var yLast int
+	var packet []int
+	defer close(ch)
+
+	limits, err := regexp.Compile("^<svg width=\"(\\d+)\" height=\"(\\d+)\">$")
+	if err != nil {
+		return err
+	}
+	bpPconfig, err := regexp.Compile("\\s+BitsPerPixel=(\\d+)$")
+	if err != nil {
+		return err
+	}
+	pixel, err := regexp.Compile("^<rect x=\"(\\d+)\" y=\"(\\d+)\" width=\"\\d+\" height=\"\\d+\" style=\"fill:rgb\\((\\d+),(\\d+),(\\d+)\\)\" />$")
+	if err != nil {
+		return err
+	}
 
 	for svg.Scan() {
-		fmt.Println(svg.Text())
+		switch {
+		case limitX == 0 && limitY == 0:
+			matches := limits.FindStringSubmatch(svg.Text())
+			if len(matches) == 3 {
+				limitX, _ = strconv.Atoi(matches[1])
+				limitY, _ = strconv.Atoi(matches[2])
+			}
+		case bpP == 0:
+			matches := bpPconfig.FindStringSubmatch(svg.Text())
+			if len(matches) == 2 {
+				bpP, _ = strconv.Atoi(matches[1])
+			}
+		default:
+			matches := pixel.FindStringSubmatch(svg.Text())
+			if len(matches) == 6 {
+				pixelX, _ := strconv.Atoi(matches[1])
+				pixelY, _ := strconv.Atoi(matches[2])
+				if pixelY != yLast {
+					yLast = pixelY
+					if err := createPacket(ch, packet, bpP); err != nil {
+						return err
+					}
+					packet = packet[:0]
+				}
+				if pixelX >= limitX {
+					return fmt.Errorf("x-coordinate (%d) is bigger than the limit (%d)\n", pixelX, limitX)
+				}
+				r, _ := strconv.Atoi(matches[3])
+				g, _ := strconv.Atoi(matches[4])
+				b, _ := strconv.Atoi(matches[5])
+				packet = append(packet, r, g, b)
+			}
+		}
 	}
+	return nil
 }
 
 func createPcap(g *errgroup.Group, ch chan []byte, cfg configs) {
