@@ -391,6 +391,25 @@ func createPacket(ch chan []byte, packet []int, bpP int) error {
 		for _, i := range packet {
 			buf = append(buf, byte(i))
 		}
+	case 1:
+		var tmp int
+		for j, i := range packet {
+			if j%3 != 0 {
+				continue
+			}
+			if j%(8*3) == 0 && j != 0 {
+				buf = append(buf, byte(tmp))
+				tmp = 0
+			}
+			if i == 0 {
+				continue
+			} else {
+				tmp = tmp | (1 << uint8(7-(j/3)%8))
+			}
+		}
+		if tmp != 0 {
+			buf = append(buf, byte(tmp))
+		}
 	default:
 		return fmt.Errorf("This format is not supported so far")
 	}
