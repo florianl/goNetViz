@@ -440,6 +440,10 @@ func extractInformation(g *errgroup.Group, ch chan []byte, cfg configs) error {
 	if err != nil {
 		return err
 	}
+	svgEnd, err := regexp.Compile("^</svg>$")
+	if err != nil {
+		return err
+	}
 
 	for svg.Scan() {
 		switch {
@@ -473,13 +477,21 @@ func extractInformation(g *errgroup.Group, ch chan []byte, cfg configs) error {
 				g, _ := strconv.Atoi(matches[4])
 				b, _ := strconv.Atoi(matches[5])
 				packet = append(packet, r, g, b)
+			} else {
+				end := svgEnd.FindStringSubmatch(svg.Text())
+				if len(end) == 1 && len(packet) != 0 {
+					if err := createPacket(ch, packet, bpP); err != nil {
+						return err
+					}
+					return nil
+				}
 			}
 		}
 	}
 	return nil
 }
 
-func createPcap(g *errgroup.Group, ch chan []byte, cfg configs) {
+func createPcap(g *errgroup.Group, ch chan []byte, cfg configs) error {
 	filename := cfg.prefix
 	filename += ".pcap"
 	output, _ := os.Create(filename)
@@ -490,13 +502,22 @@ func createPcap(g *errgroup.Group, ch chan []byte, cfg configs) {
 	for i, ok := <-ch; ok; i, ok = <-ch {
 		w.WritePacket(gopacket.CaptureInfo{CaptureLength: len(i), Length: len(i), InterfaceIndex: 0}, i)
 	}
+
+	return nil
 }
 
 func reconstruct(g *errgroup.Group, cfg configs) error {
 	ch := make(chan []byte)
 
 	go extractInformation(g, ch, cfg)
-	createPcap(g, ch, cfg)
+
+	g.Go(func() error {
+		return createPcap(g, ch, cfg)
+	})
+
+	if err := g.Wait(); err != nil {
+		return err
+	}
 
 	return nil
 }
