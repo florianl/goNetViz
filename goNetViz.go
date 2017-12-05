@@ -384,15 +384,35 @@ func visualize(g *errgroup.Group, cfg configs) error {
 	return nil
 }
 
+func createBytes(slice []int, bpP int) ([]byte, error) {
+	var bytes []byte
+
+	return bytes, nil
+}
+
 func createPacket(ch chan []byte, packet []int, bpP int) error {
 	var buf []byte
+	var tmp int
 	switch bpP {
 	case 24:
 		for _, i := range packet {
 			buf = append(buf, byte(i))
 		}
+	case 3, 6, 9, 12, 15, 18, 21:
+		return fmt.Errorf("This format is not supported for the moment")
+		var slice []int
+		for i := 0; i < len(packet); i = i + 1 {
+			if i%(bpP*8) == 0 && i != 0 {
+				bytes, _ := createBytes(slice, bpP)
+				buf = append(buf, bytes...)
+				slice = slice[:0]
+			}
+			slice = append(slice, packet[i])
+		}
+		if tmp != 0 {
+			buf = append(buf, byte(tmp))
+		}
 	case 1:
-		var tmp int
 		var j int
 		for i := 0; i < len(packet); i = i + 3 {
 			if j%8 == 0 && j != 0 {
