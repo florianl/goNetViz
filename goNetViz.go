@@ -384,10 +384,22 @@ func visualize(g *errgroup.Group, cfg configs) error {
 	return nil
 }
 
-func createBytes(slice []int, bpP int) ([]byte, error) {
+func createBytes(slice []int, bitsPerByte int) []byte {
 	var bytes []byte
+	var tmp uint8
+	var shift int
 
-	return bytes, nil
+	for i, j := range slice {
+		for k := 0; k < bitsPerByte; k++ {
+			tmp |= (uint8(j) & (1 << uint8(7-shift%8)))
+			shift = shift + 1
+			if shift%8 == 0 && i != 0 {
+				bytes = append(bytes, byte(tmp))
+				tmp = 0
+			}
+		}
+	}
+	return bytes
 }
 
 func createPacket(ch chan []byte, packet []int, bpP int) error {
@@ -399,19 +411,17 @@ func createPacket(ch chan []byte, packet []int, bpP int) error {
 			buf = append(buf, byte(i))
 		}
 	case 3, 6, 9, 12, 15, 18, 21:
-		return fmt.Errorf("This format is not supported for the moment")
 		var slice []int
 		for i := 0; i < len(packet); i = i + 1 {
 			if i%(bpP*8) == 0 && i != 0 {
-				bytes, _ := createBytes(slice, bpP)
+				bytes := createBytes(slice, bpP/3)
 				buf = append(buf, bytes...)
 				slice = slice[:0]
 			}
 			slice = append(slice, packet[i])
 		}
-		if tmp != 0 {
-			buf = append(buf, byte(tmp))
-		}
+		bytes := createBytes(slice, bpP/3)
+		buf = append(buf, bytes...)
 	case 1:
 		var j int
 		for i := 0; i < len(packet); i = i + 3 {
