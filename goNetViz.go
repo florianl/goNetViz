@@ -93,6 +93,14 @@ func createTerminalVisualization(pkt1, pkt2 data, cfg configs) {
 
 	pkt1Len = len(pkt1.payload)
 	pkt2Len = len(pkt2.payload)
+
+	if pkt1Len == 0 {
+		pkt1Len = -1
+	}
+	if pkt2Len == 0 {
+		pkt2Len = -1
+	}
+
 	for {
 		if byte1Pos > pkt1Len {
 			r1, g1, b1 = 0x00, 0x00, 0x00
