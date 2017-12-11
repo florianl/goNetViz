@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"flag"
@@ -8,9 +9,12 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
+	"github.com/google/gopacket/pcapgo"
 	"golang.org/x/sync/errgroup"
 	"os"
 	"os/signal"
+	"regexp"
+	"strconv"
 	"time"
 )
 
@@ -18,6 +22,7 @@ const (
 	solder    = 0x01
 	terminal  = 0x02
 	timeslize = 0x04
+	reverse   = 0x08
 )
 
 // Version number of this tool
@@ -284,10 +289,14 @@ func initSource(dev, file, filter string) (handle *pcap.Handle, err error) {
 	return
 }
 
-func checkConfig(cfg *configs, console bool) error {
+func checkConfig(cfg *configs, console, rebuild bool) error {
 
 	if console {
 		cfg.stil |= terminal
+	}
+
+	if rebuild {
+		cfg.stil |= reverse
 	}
 
 	if cfg.bpP%3 != 0 && cfg.bpP != 1 {
@@ -300,10 +309,21 @@ func checkConfig(cfg *configs, console bool) error {
 		cfg.stil |= timeslize
 	}
 
-	if cfg.stil == (timeslize | terminal) {
+	switch cfg.stil {
+	case (timeslize | terminal):
 		return fmt.Errorf("-timeslize and -terminal can't be combined")
-	} else if cfg.stil == 0 {
+	case (timeslize | reverse):
+		return fmt.Errorf("-timeslize and -reverse can't be combined")
+	case (terminal | reverse):
+		return fmt.Errorf("-terminal and -reverse can't be combined")
+	case (terminal | timeslize | reverse):
+		return fmt.Errorf("-terminal, -timeslize and -reverse can't be combined")
+	case 0: /*	no specific option was given	*/
 		cfg.stil |= solder
+	}
+
+	if cfg.stil == reverse && len(cfg.file) == 0 {
+		return fmt.Errorf("-file is needed as source")
 	}
 
 	if cfg.stil == terminal && cfg.scale != 1 {
@@ -383,6 +403,177 @@ func visualize(g *errgroup.Group, cfg configs) error {
 	return nil
 }
 
+func createBytes(slice []int, bitsPerByte int) []byte {
+	var bytes []byte
+	var tmp uint8
+	var shift int
+
+	for i, j := range slice {
+		for k := 0; k < bitsPerByte; k++ {
+			tmp |= (uint8(j) & (1 << uint8(7-shift%8)))
+			shift = shift + 1
+			if shift%8 == 0 && i != 0 {
+				bytes = append(bytes, byte(tmp))
+				tmp = 0
+			}
+		}
+	}
+	return bytes
+}
+
+func createPacket(ch chan []byte, packet []int, bpP int) error {
+	var buf []byte
+	var tmp int
+	switch bpP {
+	case 24:
+		for _, i := range packet {
+			buf = append(buf, byte(i))
+		}
+	case 3, 6, 9, 12, 15, 18, 21:
+		var slice []int
+		for i := 0; i < len(packet); i = i + 1 {
+			if i%(bpP*8) == 0 && i != 0 {
+				bytes := createBytes(slice, bpP/3)
+				buf = append(buf, bytes...)
+				slice = slice[:0]
+			}
+			slice = append(slice, packet[i])
+		}
+		bytes := createBytes(slice, bpP/3)
+		buf = append(buf, bytes...)
+	case 1:
+		var j int
+		for i := 0; i < len(packet); i = i + 3 {
+			if j%8 == 0 && j != 0 {
+				buf = append(buf, byte(tmp))
+				tmp = 0
+			}
+			if packet[i] != 0 {
+				tmp = tmp | (1 << uint8(7-j%8))
+			}
+			j = j + 1
+		}
+		if tmp != 0 {
+			buf = append(buf, byte(tmp))
+		}
+	default:
+		return fmt.Errorf("This format is not supported so far")
+	}
+
+	ch <- buf
+
+	return nil
+}
+
+func extractInformation(g *errgroup.Group, ch chan []byte, cfg configs) error {
+	inputfile, err := os.Open(cfg.file)
+	if err != nil {
+		return fmt.Errorf("Could not open file %s: %s\n", cfg.file, err.Error())
+	}
+	defer inputfile.Close()
+	svg := bufio.NewScanner(inputfile)
+	var limitX, limitY, bpP int
+	var yLast int
+	var packet []int
+	defer close(ch)
+
+	limits, err := regexp.Compile("^<svg width=\"(\\d+)\" height=\"(\\d+)\">$")
+	if err != nil {
+		return err
+	}
+	bpPconfig, err := regexp.Compile("\\s+BitsPerPixel=(\\d+)$")
+	if err != nil {
+		return err
+	}
+	pixel, err := regexp.Compile("^<rect x=\"(\\d+)\" y=\"(\\d+)\" width=\"\\d+\" height=\"\\d+\" style=\"fill:rgb\\((\\d+),(\\d+),(\\d+)\\)\" />$")
+	if err != nil {
+		return err
+	}
+	svgEnd, err := regexp.Compile("^</svg>$")
+	if err != nil {
+		return err
+	}
+
+	for svg.Scan() {
+		switch {
+		case limitX == 0 && limitY == 0:
+			matches := limits.FindStringSubmatch(svg.Text())
+			if len(matches) == 3 {
+				limitX, _ = strconv.Atoi(matches[1])
+				limitY, _ = strconv.Atoi(matches[2])
+			}
+		case bpP == 0:
+			matches := bpPconfig.FindStringSubmatch(svg.Text())
+			if len(matches) == 2 {
+				bpP, _ = strconv.Atoi(matches[1])
+			}
+		default:
+			matches := pixel.FindStringSubmatch(svg.Text())
+			if len(matches) == 6 {
+				pixelX, _ := strconv.Atoi(matches[1])
+				pixelY, _ := strconv.Atoi(matches[2])
+				if pixelY != yLast {
+					yLast = pixelY
+					if err := createPacket(ch, packet, bpP); err != nil {
+						return err
+					}
+					packet = packet[:0]
+				}
+				if pixelX >= limitX {
+					return fmt.Errorf("x-coordinate (%d) is bigger than the limit (%d)\n", pixelX, limitX)
+				}
+				r, _ := strconv.Atoi(matches[3])
+				g, _ := strconv.Atoi(matches[4])
+				b, _ := strconv.Atoi(matches[5])
+				packet = append(packet, r, g, b)
+			} else {
+				end := svgEnd.FindStringSubmatch(svg.Text())
+				if len(end) == 1 && len(packet) != 0 {
+					if err := createPacket(ch, packet, bpP); err != nil {
+						return err
+					}
+					return nil
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func createPcap(g *errgroup.Group, ch chan []byte, cfg configs) error {
+	filename := cfg.prefix
+	filename += ".pcap"
+	output, err := os.Create(filename)
+	if err != nil {
+		return fmt.Errorf("Could not create file %s: %s\n", filename, err.Error())
+	}
+	defer output.Close()
+	w := pcapgo.NewWriter(output)
+	w.WriteFileHeader(65536, layers.LinkTypeEthernet)
+
+	for i, ok := <-ch; ok; i, ok = <-ch {
+		w.WritePacket(gopacket.CaptureInfo{CaptureLength: len(i), Length: len(i), InterfaceIndex: 0}, i)
+	}
+
+	return nil
+}
+
+func reconstruct(g *errgroup.Group, cfg configs) error {
+	ch := make(chan []byte)
+
+	go extractInformation(g, ch, cfg)
+
+	g.Go(func() error {
+		return createPcap(g, ch, cfg)
+	})
+
+	if err := g.Wait(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func main() {
 	var cfg configs
 	g, ctx := errgroup.WithContext(context.Background())
@@ -417,6 +608,7 @@ func main() {
 	ts := flag.Uint("timeslize", 0, "Number of microseconds per resulting image.\n\tSo each pixel of the height of the resulting image represents one microsecond.")
 	scale := flag.Uint("scale", 1, "Scaling factor for output.\n\tWorks not for output on terminal.")
 	xlimit := flag.Uint("limit", 1500, "Maximim number of bytes per packet.\n\tIf your MTU is higher than the default value of 1500 you might change this value.")
+	rebuild := flag.Bool("reverse", false, "Create a pcap from a svg")
 	flag.Parse()
 
 	if *lst {
@@ -432,7 +624,7 @@ func main() {
 	}
 
 	if *help {
-		fmt.Println(os.Args[0], "[-list_interfaces] [-help] [-version]\n\t[-bits ...] [-count ...] [-limit ...] [-file ... |-interface ...] [-filter ...] [-prefix ...] [-scale ...] [-size ... | -timeslize ... |-terminal]\n")
+		fmt.Println(os.Args[0], "[-list_interfaces] [-help] [-version]\n\t[-bits ...] [-count ...] [-limit ...] [-file ... |-interface ...] [-filter ...] [-prefix ...] [-scale ...] [-size ... | -timeslize ... |-terminal|-reverse]\n")
 		flag.PrintDefaults()
 		return
 	}
@@ -449,14 +641,21 @@ func main() {
 	cfg.filter = *filter
 	cfg.prefix = *prefix
 
-	if err := checkConfig(&cfg, *terminalOut); err != nil {
+	if err := checkConfig(&cfg, *terminalOut, *rebuild); err != nil {
 		fmt.Println("Configuration error:", err)
 		return
 	}
 
-	if err := visualize(g, cfg); err != nil {
-		fmt.Println("Configuration error:", err)
-		return
+	if cfg.stil&reverse == cfg.stil {
+		if err := reconstruct(g, cfg); err != nil {
+			fmt.Println("Visualizon error:", err)
+			return
+		}
+	} else {
+		if err := visualize(g, cfg); err != nil {
+			fmt.Println("Visualizon error:", err)
+			return
+		}
 	}
 
 }

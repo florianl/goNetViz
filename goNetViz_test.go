@@ -47,6 +47,7 @@ func TestCheckConfig(t *testing.T) {
 		name    string
 		cfg     configs
 		console bool
+		rebuild bool
 		err     string
 	}{
 		// Testing different output stiles
@@ -63,7 +64,7 @@ func TestCheckConfig(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			res := checkConfig(&tc.cfg, tc.console)
+			res := checkConfig(&tc.cfg, tc.console, tc.rebuild)
 
 			if tc.err != "" {
 				if res.Error() != tc.err {
