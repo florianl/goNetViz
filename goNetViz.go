@@ -301,14 +301,21 @@ func checkConfig(cfg *configs, console, rebuild bool) error {
 		cfg.stil |= timeslize
 	}
 
-	if cfg.stil == (timeslize | terminal) {
+	switch cfg.stil {
+	case (timeslize | terminal):
 		return fmt.Errorf("-timeslize and -terminal can't be combined")
-	} else if cfg.stil == 0 {
+	case (timeslize | reverse):
+		return fmt.Errorf("-timeslize and -reverse can't be combined")
+	case (terminal | reverse):
+		return fmt.Errorf("-terminal and -reverse can't be combined")
+	case (terminal | timeslize | reverse):
+		return fmt.Errorf("-terminal, -timeslize and -reverse can't be combined")
+	case 0: /*	no specific option was given	*/
 		cfg.stil |= solder
 	}
 
-	if cfg.stil == terminal && cfg.scale != 1 {
-		return fmt.Errorf("-scale and -terminal can't be combined")
+	if cfg.stil == reverse && len(cfg.file) == 0 {
+		return fmt.Errorf("-file is needed as source")
 	}
 
 	if cfg.scale == 0 {
@@ -447,7 +454,10 @@ func createPacket(ch chan []byte, packet []int, bpP int) error {
 }
 
 func extractInformation(g *errgroup.Group, ch chan []byte, cfg configs) error {
-	inputfile, _ := os.Open(cfg.file)
+	inputfile, err := os.Open(cfg.file)
+	if err != nil {
+		return fmt.Errorf("Could not open file %s: %s\n", cfg.file, err.Error())
+	}
 	defer inputfile.Close()
 	svg := bufio.NewScanner(inputfile)
 	var limitX, limitY, bpP int
@@ -521,7 +531,10 @@ func extractInformation(g *errgroup.Group, ch chan []byte, cfg configs) error {
 func createPcap(g *errgroup.Group, ch chan []byte, cfg configs) error {
 	filename := cfg.prefix
 	filename += ".pcap"
-	output, _ := os.Create(filename)
+	output, err := os.Create(filename)
+		if err != nil {
+		return fmt.Errorf("Could not create file %s: %s\n", filename, err.Error())
+	}
 	defer output.Close()
 	w := pcapgo.NewWriter(output)
 	w.WriteFileHeader(65536, layers.LinkTypeEthernet)
@@ -599,7 +612,7 @@ func main() {
 	}
 
 	if *help {
-		fmt.Println(os.Args[0], "[-list_interfaces] [-help] [-version]\n\t[-bits ...] [-count ...] [-limit ...] [-file ... |-interface ...] [-filter ...] [-prefix ...] [-scale ...] [-size ... | -timeslize ... |-terminal]\n")
+		fmt.Println(os.Args[0], "[-list_interfaces] [-help] [-version]\n\t[-bits ...] [-count ...] [-limit ...] [-file ... |-interface ...] [-filter ...] [-prefix ...] [-scale ...] [-size ... | -timeslize ... |-terminal|-reverse]\n")
 		flag.PrintDefaults()
 		return
 	}
