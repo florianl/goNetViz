@@ -318,6 +318,10 @@ func checkConfig(cfg *configs, console, rebuild bool) error {
 		return fmt.Errorf("-file is needed as source")
 	}
 
+	if cfg.stil == terminal && cfg.scale != 1 {
+		return fmt.Errorf("-scale and -terminal can't be combined")
+	}
+
 	if cfg.scale == 0 {
 		return fmt.Errorf("scale factor has to be at least 1")
 	}
@@ -532,7 +536,7 @@ func createPcap(g *errgroup.Group, ch chan []byte, cfg configs) error {
 	filename := cfg.prefix
 	filename += ".pcap"
 	output, err := os.Create(filename)
-		if err != nil {
+	if err != nil {
 		return fmt.Errorf("Could not create file %s: %s\n", filename, err.Error())
 	}
 	defer output.Close()
