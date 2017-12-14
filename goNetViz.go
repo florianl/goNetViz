@@ -397,10 +397,7 @@ func visualize(g *errgroup.Group, cfg configs) error {
 		createVisualization(g, content, index, cfg)
 	}
 
-	if err := g.Wait(); err != nil {
-		return err
-	}
-	return nil
+	return g.Wait()
 }
 
 func createBytes(slice []int, bitsPerByte int) []byte {
@@ -529,10 +526,7 @@ func extractInformation(g *errgroup.Group, ch chan []byte, cfg configs) error {
 			} else {
 				end := svgEnd.FindStringSubmatch(svg.Text())
 				if len(end) == 1 && len(packet) != 0 {
-					if err := createPacket(ch, packet, bpP); err != nil {
-						return err
-					}
-					return nil
+					return createPacket(ch, packet, bpP)
 				}
 			}
 		}
@@ -567,11 +561,7 @@ func reconstruct(g *errgroup.Group, cfg configs) error {
 		return createPcap(g, ch, cfg)
 	})
 
-	if err := g.Wait(); err != nil {
-		return err
-	}
-
-	return nil
+	return g.Wait()
 }
 
 func main() {
