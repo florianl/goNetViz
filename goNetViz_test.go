@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"golang.org/x/sync/errgroup"
@@ -62,6 +63,11 @@ func TestCheckConfig(t *testing.T) {
 		{name: "Time Slize", cfg: configs{1, 0, 50, 0, 0, 1, 1500, "dev", "filter", "file", "prefix"}},
 		{name: "Scale and Terminal", cfg: configs{1, 0, 0, 0, terminal, 2, 1500, "dev", "filter", "file", "prefix"}, console: true, err: "-scale and -terminal can't be combined"},
 		{name: "Time Slize", cfg: configs{1, 0, 50, 0, 0, 0, 1500, "dev", "filter", "file", "prefix"}, err: "scale factor has to be at least 1"},
+		{name: "Time Slize, Terminal and Rebuild", cfg: configs{1, 0, 50, 0, 0, 0, 1500, "dev", "filter", "file", "prefix"}, console: true, rebuild: true, err: "-terminal, -timeslize and -reverse can't be combined"},
+		{name: "Time Slize and Rebuild", cfg: configs{1, 0, 50, 0, 0, 0, 1500, "dev", "filter", "file", "prefix"}, rebuild: true, err: "-timeslize and -reverse can't be combined"},
+		{name: "Terminal and Rebuild", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "dev", "filter", "file", "prefix"}, console: true, rebuild: true, err: "-terminal and -reverse can't be combined"},
+		{name: "Rebuild without file", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "dev", "filter", "", "prefix"}, console: false, rebuild: true, err: "-file is needed as source"},
+		{name: "Jumbo frame", cfg: configs{1, 0, 0, 0, 0, 1, 15000, "dev", "filter", "file", "prefix"}, err: "limit has to be smallerthan a Jumbo frame (9000 bytes)"},
 	}
 
 	for _, tc := range tests {
@@ -286,11 +292,73 @@ func TestCreateTerminalVisualization(t *testing.T) {
 		{name: "bytePos >= pkt1Len", pkt1: data{toa: 0, payload: []byte{0x01}}, pkt2: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, cfg: configs{3, 0, 0, 0, timeslize, 1, 1500, "dev", "filter", "file", "prefix"}},
 		{name: "bytePos >= pkt2Len", pkt1: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, pkt2: data{toa: 0, payload: []byte{0x01}}, cfg: configs{3, 0, 0, 0, timeslize, 1, 1500, "dev", "filter", "file", "prefix"}},
 		{name: "pkt1Len == pkt2Len", pkt1: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, pkt2: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, cfg: configs{3, 0, 0, 0, timeslize, 1, 1500, "dev", "filter", "file", "prefix"}},
+		{name: "pkt1Len == 0", pkt1: data{toa: 0, payload: []byte{}}, pkt2: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, cfg: configs{3, 0, 0, 0, timeslize, 1, 1500, "dev", "filter", "file", "prefix"}},
+		{name: "pkt2Len == 0", pkt1: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, pkt2: data{toa: 0, payload: []byte{}}, cfg: configs{3, 0, 0, 0, timeslize, 1, 1500, "dev", "filter", "file", "prefix"}},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			createTerminalVisualization(tc.pkt1, tc.pkt2, tc.cfg)
+		})
+	}
+}
+
+func TestCreateBytes(t *testing.T) {
+	tests := []struct {
+		name        string
+		slice       []int
+		bitsPerByte int
+		ret         []byte
+	}{
+		{name: "2 Bit", slice: []int{5, 10, 204, 51, 5, 10, 204, 51}, bitsPerByte: 1, ret: []byte{0x11}},
+		{name: "3 Bits", slice: []int{5, 10, 204, 51, 5, 10, 204, 51}, bitsPerByte: 1, ret: []byte{0x11}},
+		{name: "4 Bits", slice: []int{5, 10, 204, 51, 5, 10, 204, 51}, bitsPerByte: 1, ret: []byte{0x11}},
+		{name: "5 Bits", slice: []int{5, 10, 204, 51, 5, 10, 204, 51}, bitsPerByte: 1, ret: []byte{0x11}},
+		{name: "6 Bits", slice: []int{5, 10, 204, 51, 5, 10, 204, 51}, bitsPerByte: 1, ret: []byte{0x11}},
+		{name: "7 Bits", slice: []int{5, 10, 204, 51, 5, 10, 204, 51}, bitsPerByte: 1, ret: []byte{0x11}},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ret := createBytes(tc.slice, tc.bitsPerByte)
+			if bytes.Compare(ret, tc.ret) != 0 {
+				t.Errorf("Expected: %v \t Got: %v", tc.ret, ret)
+			}
+		})
+	}
+}
+
+func TestCreatePcap(t *testing.T) {
+	dir, err := ioutil.TempDir("", "TestCreatePcap")
+	if err != nil {
+		t.Errorf("Could not create temporary directory: %v", err)
+	}
+	defer os.RemoveAll(dir)
+	tests := []struct {
+		name    string
+		payload []byte
+		cfg     configs
+		err     string
+	}{
+		{name: "Simple", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", "", fmt.Sprintf("%s/simple", dir)}, payload: []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			g, _ := errgroup.WithContext(context.Background())
+			ch := make(chan []byte)
+			go func() {
+				ch <- tc.payload
+				close(ch)
+			}()
+			err := createPcap(g, ch, tc.cfg)
+			if err != nil {
+				if matched, _ := regexp.MatchString(tc.err, err.Error()); matched == false {
+					t.Errorf("Error matching regex: %v \t Got: %v", tc.err, err)
+				}
+			} else if len(tc.err) != 0 {
+				t.Fatalf("Expected error, got none")
+			}
 		})
 	}
 }
