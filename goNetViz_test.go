@@ -1,12 +1,14 @@
 package main
 
-import "testing"
-import "io/ioutil"
-import "os"
-import "fmt"
-import "regexp"
-import "context"
-import "golang.org/x/sync/errgroup"
+import (
+	"context"
+	"fmt"
+	"golang.org/x/sync/errgroup"
+	"io/ioutil"
+	"os"
+	"regexp"
+	"testing"
+)
 
 func TestGetBitsFromPacket(t *testing.T) {
 
