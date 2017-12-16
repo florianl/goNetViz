@@ -362,3 +362,44 @@ func TestCreatePcap(t *testing.T) {
 		})
 	}
 }
+
+func TestCreatePacket(t *testing.T) {
+	dir, err := ioutil.TempDir("", "TestCreatePcap")
+	if err != nil {
+		t.Errorf("Could not create temporary directory: %v", err)
+	}
+	defer os.RemoveAll(dir)
+	tests := []struct {
+		name   string
+		recv   []byte
+		packet []int
+		bpP    int
+		err    string
+	}{
+		{name: "24 BitsPerPixel", recv: []byte{8, 16, 32, 64, 128}, packet: []int{8, 16, 32, 64, 128}, bpP: 24},
+		{name: "12 BitPerPixel", recv: []byte{1, 2, 5, 13, 18, 57, 153}, packet: []int{0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233}, bpP: 12},
+		{name: "2 BitsPerPixel", recv: []byte{8, 16, 32, 64, 128}, packet: []int{8, 16, 32, 64, 128}, bpP: 2, err: "This format is not supported so far"},
+		{name: "1 BitPerPixel", recv: []byte{1, 8}, packet: []int{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0}, bpP: 1},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ch := make(chan []byte)
+			var recv []byte
+			go func() {
+				recv = <-ch
+				close(ch)
+			}()
+			err := createPacket(ch, tc.packet, tc.bpP)
+			if err != nil {
+				if matched, _ := regexp.MatchString(tc.err, err.Error()); matched == false {
+					t.Errorf("Error matching regex: %v \t Got: %v", tc.err, err)
+				}
+			} else if len(tc.err) != 0 {
+				t.Fatalf("Expected error, got none")
+			} else if bytes.Compare(recv, tc.recv) != 0 {
+				t.Errorf("Expected: %v \t Got: %v", tc.recv, recv)
+			}
+		})
+	}
+}
