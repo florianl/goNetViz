@@ -362,7 +362,7 @@ func visualize(g *errgroup.Group, cfg configs) error {
 	case solder:
 		for i, ok := <-ch; ok; i, ok = <-ch {
 			content = append(content, i)
-			if len(content) >= int(cfg.ppI) {
+			if len(content) >= int(cfg.ppI) && cfg.ppI != 0 {
 				createVisualization(g, content, index, cfg)
 				index++
 				content = content[:0]
@@ -593,7 +593,7 @@ func main() {
 	terminalOut := flag.Bool("terminal", false, "Visualize output on terminal.")
 	num := flag.Uint("count", 25, "Number of packets to process.\n\tIf argument is 0 the limit is removed.")
 	prefix := flag.String("prefix", "image", "Prefix of the resulting image.")
-	size := flag.Uint("size", 25, "Number of packets per image.")
+	size := flag.Uint("size", 25, "Number of packets per image.\n\tIf argument is 0 the limit is removed.")
 	bits := flag.Uint("bits", 24, "Number of bits per pixel. It must be divisible by three and smaller than 25 or 1.\n\tTo get black/white results, choose 1 as input.")
 	ts := flag.Uint("timeslize", 0, "Number of microseconds per resulting image.\n\tSo each pixel of the height of the resulting image represents one microsecond.")
 	scale := flag.Uint("scale", 1, "Scaling factor for output.\n\tWorks not for output on terminal.")
