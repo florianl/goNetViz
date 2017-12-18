@@ -11,6 +11,33 @@ import (
 	"testing"
 )
 
+const (
+	notSvg         = `This is not a svg`
+	withoutComment = `<?xml version="1.0"?>
+<svg width="6" height="1">
+<rect x="0" y="0" width="1" height="1" style="fill:rgb(0,0,0)" />
+<rect x="1" y="0" width="1" height="1" style="fill:rgb(0,0,0)" />
+<rect x="2" y="0" width="1" height="1" style="fill:rgb(0,0,0)" />
+<rect x="3" y="0" width="1" height="1" style="fill:rgb(0,0,0)" />
+<rect x="4" y="0" width="1" height="1" style="fill:rgb(0,0,0)" />
+<rect x="5" y="0" width="1" height="1" style="fill:rgb(0,0,0)" />
+</svg>`
+	validSvg = `<?xml version="1.0"?>
+<svg width="6" height="2">
+<!--
+	goNetViz "0.0.3"
+	Scale=1
+	BitsPerPixel=3
+-->
+<rect x="0" y="0" width="1" height="1" style="fill:rgb(0,0,0)" />
+<rect x="1" y="0" width="1" height="1" style="fill:rgb(0,0,0)" />
+<rect x="2" y="0" width="1" height="1" style="fill:rgb(0,0,0)" />
+<rect x="0" y="1" width="1" height="1" style="fill:rgb(0,0,0)" />
+<rect x="1" y="1" width="1" height="1" style="fill:rgb(0,0,0)" />
+<rect x="2" y="1" width="1" height="1" style="fill:rgb(0,0,0)" />
+</svg>`
+)
+
 func TestGetBitsFromPacket(t *testing.T) {
 
 	var bytePos int
@@ -387,10 +414,96 @@ func TestCreatePacket(t *testing.T) {
 			ch := make(chan []byte)
 			var recv []byte
 			go func() {
-				recv = <-ch
+				for i, ok := <-ch; ok; i, ok = <-ch {
+					recv = append(recv, i...)
+				}
 				close(ch)
 			}()
 			err := createPacket(ch, tc.packet, tc.bpP)
+			if err != nil {
+				if matched, _ := regexp.MatchString(tc.err, err.Error()); matched == false {
+					t.Errorf("Error matching regex: %v \t Got: %v", tc.err, err)
+				}
+			} else if len(tc.err) != 0 {
+				t.Fatalf("Expected error, got none")
+			} else if bytes.Compare(recv, tc.recv) != 0 {
+				t.Errorf("Expected: %v \t Got: %v", tc.recv, recv)
+			}
+		})
+	}
+}
+
+func TestExtractInformation(t *testing.T) {
+	dir, err := ioutil.TempDir("", "TestExtractInformation")
+	if err != nil {
+		t.Errorf("Could not create temporary directory: %v", err)
+	}
+	defer os.RemoveAll(dir)
+
+	notSvgFile, err := ioutil.TempFile("", "notSvg.svg")
+	if err != nil {
+		t.Errorf("Could not create temporary file: %v", err)
+	}
+
+	defer os.Remove(notSvgFile.Name())
+
+	if _, err := notSvgFile.WriteString(notSvg); err != nil {
+		t.Errorf("Could not write in temporary file: %v", err)
+	}
+	if err := notSvgFile.Close(); err != nil {
+		t.Errorf("Could not close temporary file: %v", err)
+	}
+
+	withoutCommentFile, err := ioutil.TempFile("", "withoutComment.svg")
+	if err != nil {
+		t.Errorf("Could not create temporary file: %v", err)
+	}
+
+	defer os.Remove(withoutCommentFile.Name())
+
+	if _, err := withoutCommentFile.WriteString(withoutComment); err != nil {
+		t.Errorf("Could not write in temporary file: %v", err)
+	}
+	if err := withoutCommentFile.Close(); err != nil {
+		t.Errorf("Could not close temporary file: %v", err)
+	}
+
+	validSvgFile, err := ioutil.TempFile("", "validSvg.svg")
+	if err != nil {
+		t.Errorf("Could not create temporary file: %v", err)
+	}
+	defer os.Remove(validSvgFile.Name())
+
+	if _, err := validSvgFile.WriteString(validSvg); err != nil {
+		t.Errorf("Could not write in temporary file: %v", err)
+	}
+	if err := validSvgFile.Close(); err != nil {
+		t.Errorf("Could not close temporary file: %v", err)
+	}
+
+	tests := []struct {
+		name string
+		cfg  configs
+		recv []byte
+		err  string
+	}{
+		{name: "No file", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", "noFile", ""}, err: "Could not open file"},
+		{name: "Not a svg", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", fmt.Sprintf("%s", notSvgFile.Name()), fmt.Sprintf("%s/not_a_svg", dir)}},
+		{name: "Without Comment", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", fmt.Sprintf("%s", withoutCommentFile.Name()), fmt.Sprintf("%s/without_comment", dir)}},
+		{name: "Valid svg", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", fmt.Sprintf("%s", validSvgFile.Name()), fmt.Sprintf("%s/valid_svg", dir)}, recv: []byte{0, 0}},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			g, _ := errgroup.WithContext(context.Background())
+			ch := make(chan []byte)
+			var recv []byte
+			go func() {
+				for i, ok := <-ch; ok; i, ok = <-ch {
+					recv = append(recv, i...)
+				}
+			}()
+			err := extractInformation(g, ch, tc.cfg)
 			if err != nil {
 				if matched, _ := regexp.MatchString(tc.err, err.Error()); matched == false {
 					t.Errorf("Error matching regex: %v \t Got: %v", tc.err, err)
