@@ -5,9 +5,8 @@ This is `goNetViz` and it is written in [golang](https://golang.org/).
 `goNetViz` visualizes your network traffic, either by reading a file or
 attaching to a network interface.
 
-[![Build Status](https://travis-ci.org/florianl/goNetViz.svg?branch=master)](https://travis-ci.org/florianl/goNetViz)
+[![Build Status](https://travis-ci.org/florianl/goNetViz.svg?branch=master)](https://travis-ci.org/florianl/goNetViz) [![Coverage Status](https://coveralls.io/repos/github/florianl/goNetViz/badge.svg?branch=master)](https://coveralls.io/github/florianl/goNetViz?branch=master)
 
-**This project is under heavy development as I am learning [golang](https://golang.org/)! Do not use it in production!**
 
         $ ./goNetViz -help
           ./goNetViz [-bits ...] [-count ...] [-file ... | -interface ...] [-filter ...] [-list_interfaces] [-help] [-prefix ...] [-size ... | -timeslize ... | -terminal] [-version]
