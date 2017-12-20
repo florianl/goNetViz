@@ -271,6 +271,7 @@ func TestCreateImage(t *testing.T) {
 		{name: "No Filename", filename: "", data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />"},
 		{name: "Just directory name", filename: dir, data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />"},
 		{name: "No Data", filename: fmt.Sprintf("%s/test.svg", dir)},
+		{name: "Without errors", filename: fmt.Sprintf("%s/test.svg", dir), data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />"},
 	}
 
 	for _, tc := range tests {
@@ -405,6 +406,7 @@ func TestCreatePacket(t *testing.T) {
 	}{
 		{name: "24 BitsPerPixel", recv: []byte{8, 16, 32, 64, 128}, packet: []int{8, 16, 32, 64, 128}, bpP: 24},
 		{name: "12 BitPerPixel", recv: []byte{1, 2, 5, 13, 18, 57, 153}, packet: []int{0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233}, bpP: 12},
+		{name: "3 BitPerPixel", recv: []byte{5, 49, 14}, packet: []int{0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 144, 89, 55, 34, 21, 13, 8, 5, 3, 2, 1, 1, 0}, bpP: 3},
 		{name: "2 BitsPerPixel", recv: []byte{8, 16, 32, 64, 128}, packet: []int{8, 16, 32, 64, 128}, bpP: 2, err: "This format is not supported so far"},
 		{name: "1 BitPerPixel", recv: []byte{1, 8}, packet: []int{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0}, bpP: 1},
 	}
