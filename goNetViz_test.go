@@ -543,9 +543,9 @@ func TestVisualize(t *testing.T) {
 		cfg  configs
 		err  string
 	}{
-		{name: "solder", cfg: configs{1, 2, 0, 0, solder, 1, 1500, "", "", fmt.Sprintf("%s", fakePcap.Name()), ""}},
+		{name: "solder", cfg: configs{1, 2, 0, 0, solder, 1, 1500, "", "", fmt.Sprintf("%s", fakePcap.Name()), fmt.Sprintf("%s/solder", tdir)}},
 		{name: "terminal", cfg: configs{24, 0, 0, 0, terminal, 1, 1500, "", "", fmt.Sprintf("%s", fakePcap.Name()), ""}},
-		{name: "timeslize", cfg: configs{1, 2, 0, 0, timeslize, 1, 1500, "", "", fmt.Sprintf("%s", fakePcap.Name()), ""}},
+		{name: "timeslize", cfg: configs{1, 2, 0, 0, timeslize, 1, 1500, "", "", fmt.Sprintf("%s", fakePcap.Name()), fmt.Sprintf("%s/timeslize", tdir)}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
