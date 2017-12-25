@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"regexp"
+	"sync"
 	"testing"
 )
 
@@ -515,9 +516,12 @@ func TestExtractInformation(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			g, _ := errgroup.WithContext(context.Background())
+			var wg sync.WaitGroup
 			ch := make(chan []byte)
 			var recv []byte
 			go func() {
+				wg.Add(1)
+				defer wg.Done()
 				for i, ok := <-ch; ok; i, ok = <-ch {
 					recv = append(recv, i...)
 				}
@@ -529,7 +533,9 @@ func TestExtractInformation(t *testing.T) {
 				}
 			} else if len(tc.err) != 0 {
 				t.Fatalf("Expected error, got none")
-			} else if bytes.Compare(recv, tc.recv) != 0 {
+			}
+			wg.Wait()
+			if bytes.Compare(recv, tc.recv) != 0 {
 				t.Errorf("Expected: %v \t Got: %v", tc.recv, recv)
 			}
 		})
