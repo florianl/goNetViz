@@ -460,43 +460,35 @@ func TestExtractInformation(t *testing.T) {
 	}
 	defer os.RemoveAll(dir)
 
-	notSvgFile, err := ioutil.TempFile("", "notSvg.svg")
+	notSvgFile, err := ioutil.TempFile(dir, "notSvg.svg")
 	if err != nil {
 		t.Errorf("Could not create temporary file: %v", err)
 	}
-
 	defer os.Remove(notSvgFile.Name())
 
-	if _, err := notSvgFile.WriteString(notSvg); err != nil {
-		t.Errorf("Could not write in temporary file: %v", err)
-	}
+	notSvgFile.WriteString(notSvg)
 	if err := notSvgFile.Close(); err != nil {
 		t.Errorf("Could not close temporary file: %v", err)
 	}
 
-	withoutCommentFile, err := ioutil.TempFile("", "withoutComment.svg")
+	withoutCommentFile, err := ioutil.TempFile(dir, "withoutComment.svg")
 	if err != nil {
 		t.Errorf("Could not create temporary file: %v", err)
 	}
-
 	defer os.Remove(withoutCommentFile.Name())
 
-	if _, err := withoutCommentFile.WriteString(withoutComment); err != nil {
-		t.Errorf("Could not write in temporary file: %v", err)
-	}
+	withoutCommentFile.WriteString(withoutComment)
 	if err := withoutCommentFile.Close(); err != nil {
 		t.Errorf("Could not close temporary file: %v", err)
 	}
 
-	validSvgFile, err := ioutil.TempFile("", "validSvg.svg")
+	validSvgFile, err := ioutil.TempFile(dir, "validSvg.svg")
 	if err != nil {
 		t.Errorf("Could not create temporary file: %v", err)
 	}
 	defer os.Remove(validSvgFile.Name())
 
-	if _, err := validSvgFile.WriteString(validSvg); err != nil {
-		t.Errorf("Could not write in temporary file: %v", err)
-	}
+	validSvgFile.WriteString(validSvg)
 	if err := validSvgFile.Close(); err != nil {
 		t.Errorf("Could not close temporary file: %v", err)
 	}
