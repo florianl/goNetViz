@@ -418,7 +418,7 @@ func createBytes(slice []int, bitsPerByte int) []byte {
 	return bytes
 }
 
-func createPacket(ch chan []byte, packet []int, bpP int) error {
+func createPacket(ch chan<- []byte, packet []int, bpP int) error {
 	var buf []byte
 	var tmp int
 	switch bpP {
