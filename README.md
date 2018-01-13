@@ -81,4 +81,7 @@ This is followed by 9 and 12 bits per pixel and finally 24 bits per pixel.
 
 ![24 Payloadbits per Pixel](img/ping24.png)
 
+An interactive output to the terminal could look like this:
+
+![Interactive Terminal output](https://github.com/florianl/goNetViz/raw/master/img/terminal.gif)
 
