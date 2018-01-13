@@ -135,7 +135,7 @@ func TestGetBitsFromPacket(t *testing.T) {
 			bitPos = 0
 			res := getBitsFromPacket(tc.packet, &bytePos, &bitPos, tc.bpP)
 			if res != tc.ret {
-				t.Errorf("Input: %d Expected: %d \t Got %d", tc.packet, tc.ret, res)
+				t.Fatalf("Input: %d Expected: %d \t Got %d", tc.packet, tc.ret, res)
 			}
 		})
 	}
@@ -172,7 +172,7 @@ func TestCheckConfig(t *testing.T) {
 
 			if tc.err != "" {
 				if res.Error() != tc.err {
-					t.Errorf("Expected: %v \t Got: %v", tc.err, res)
+					t.Fatalf("Expected: %v \t Got: %v", tc.err, res)
 				}
 			}
 		})
@@ -201,7 +201,7 @@ func TestCreatePixel(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			r, g, b := createPixel(tc.packet, &(tc.byteP), &(tc.bitP), tc.bpP)
 			if uint8(r) != tc.red || uint8(g) != tc.green || uint8(b) != tc.blue {
-				t.Errorf("Expected: r%dg%db%d\t Got: r%dg%db%d", tc.red, tc.green, tc.blue, uint8(r), uint8(g), uint8(b))
+				t.Fatalf("Expected: r%dg%db%d\t Got: r%dg%db%d", tc.red, tc.green, tc.blue, uint8(r), uint8(g), uint8(b))
 			}
 		})
 	}
@@ -261,7 +261,7 @@ func TestInitSource(t *testing.T) {
 			_, err := initSource(tc.dev, tc.file, tc.filter)
 			if err != nil {
 				if matched, _ := regexp.MatchString(tc.err, err.Error()); matched == false {
-					t.Errorf("Error matching regex: %v \t Got: %v", tc.err, err)
+					t.Fatalf("Error matching regex: %v \t Got: %v", tc.err, err)
 				}
 			} else if len(tc.err) != 0 {
 				t.Fatalf("Expected error, got none")
@@ -275,7 +275,7 @@ func TestCreateImage(t *testing.T) {
 
 	dir, err := ioutil.TempDir("", "TestCreateImage")
 	if err != nil {
-		t.Errorf("Could not create temporary directory: %v", err)
+		t.Fatalf("Could not create temporary directory: %v", err)
 	}
 
 	defer os.RemoveAll(dir)
@@ -302,7 +302,7 @@ func TestCreateImage(t *testing.T) {
 func TestCreateVisualization(t *testing.T) {
 	dir, err := ioutil.TempDir("", "TestCreateVisualization")
 	if err != nil {
-		t.Errorf("Could not create temporary directory: %v", err)
+		t.Fatalf("Could not create temporary directory: %v", err)
 	}
 	defer os.RemoveAll(dir)
 
@@ -368,7 +368,7 @@ func TestCreateBytes(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ret := createBytes(tc.slice, tc.bitsPerByte)
 			if bytes.Compare(ret, tc.ret) != 0 {
-				t.Errorf("Expected: %v \t Got: %v", tc.ret, ret)
+				t.Fatalf("Expected: %v \t Got: %v", tc.ret, ret)
 			}
 		})
 	}
@@ -377,7 +377,7 @@ func TestCreateBytes(t *testing.T) {
 func TestCreatePcap(t *testing.T) {
 	dir, err := ioutil.TempDir("", "TestCreatePcap")
 	if err != nil {
-		t.Errorf("Could not create temporary directory: %v", err)
+		t.Fatalf("Could not create temporary directory: %v", err)
 	}
 	defer os.RemoveAll(dir)
 	tests := []struct {
@@ -400,7 +400,7 @@ func TestCreatePcap(t *testing.T) {
 			err := createPcap(g, ch, tc.cfg)
 			if err != nil {
 				if matched, _ := regexp.MatchString(tc.err, err.Error()); matched == false {
-					t.Errorf("Error matching regex: %v \t Got: %v", tc.err, err)
+					t.Fatalf("Error matching regex: %v \t Got: %v", tc.err, err)
 				}
 			} else if len(tc.err) != 0 {
 				t.Fatalf("Expected error, got none")
@@ -412,7 +412,7 @@ func TestCreatePcap(t *testing.T) {
 func TestCreatePacket(t *testing.T) {
 	dir, err := ioutil.TempDir("", "TestCreatePcap")
 	if err != nil {
-		t.Errorf("Could not create temporary directory: %v", err)
+		t.Fatalf("Could not create temporary directory: %v", err)
 	}
 	defer os.RemoveAll(dir)
 	tests := []struct {
@@ -446,14 +446,14 @@ func TestCreatePacket(t *testing.T) {
 			err := createPacket(ch, tc.packet, tc.bpP)
 			if err != nil {
 				if matched, _ := regexp.MatchString(tc.err, err.Error()); matched == false {
-					t.Errorf("Error matching regex: %v \t Got: %v", tc.err, err)
+					t.Fatalf("Error matching regex: %v \t Got: %v", tc.err, err)
 				}
 			} else if len(tc.err) != 0 {
 				t.Fatalf("Expected error, got none")
 			}
 			wg.Wait()
 			if bytes.Compare(recv, tc.recv) != 0 {
-				t.Errorf("Expected: %v \t Got: %v", tc.recv, recv)
+				t.Fatalf("Expected: %v \t Got: %v", tc.recv, recv)
 			}
 		})
 	}
@@ -462,41 +462,41 @@ func TestCreatePacket(t *testing.T) {
 func TestExtractInformation(t *testing.T) {
 	dir, err := ioutil.TempDir("", "TestExtractInformation")
 	if err != nil {
-		t.Errorf("Could not create temporary directory: %v", err)
+		t.Fatalf("Could not create temporary directory: %v", err)
 	}
 	defer os.RemoveAll(dir)
 
 	notSvgFile, err := ioutil.TempFile(dir, "notSvg.svg")
 	if err != nil {
-		t.Errorf("Could not create temporary file: %v", err)
+		t.Fatalf("Could not create temporary file: %v", err)
 	}
 	defer os.Remove(notSvgFile.Name())
 
 	notSvgFile.WriteString(notSvg)
 	if err := notSvgFile.Close(); err != nil {
-		t.Errorf("Could not close temporary file: %v", err)
+		t.Fatalf("Could not close temporary file: %v", err)
 	}
 
 	withoutCommentFile, err := ioutil.TempFile(dir, "withoutComment.svg")
 	if err != nil {
-		t.Errorf("Could not create temporary file: %v", err)
+		t.Fatalf("Could not create temporary file: %v", err)
 	}
 	defer os.Remove(withoutCommentFile.Name())
 
 	withoutCommentFile.WriteString(withoutComment)
 	if err := withoutCommentFile.Close(); err != nil {
-		t.Errorf("Could not close temporary file: %v", err)
+		t.Fatalf("Could not close temporary file: %v", err)
 	}
 
 	validSvgFile, err := ioutil.TempFile(dir, "validSvg.svg")
 	if err != nil {
-		t.Errorf("Could not create temporary file: %v", err)
+		t.Fatalf("Could not create temporary file: %v", err)
 	}
 	defer os.Remove(validSvgFile.Name())
 
 	validSvgFile.WriteString(validSvg)
 	if err := validSvgFile.Close(); err != nil {
-		t.Errorf("Could not close temporary file: %v", err)
+		t.Fatalf("Could not close temporary file: %v", err)
 	}
 
 	tests := []struct {
@@ -527,14 +527,14 @@ func TestExtractInformation(t *testing.T) {
 			err := extractInformation(g, ch, tc.cfg)
 			if err != nil {
 				if matched, _ := regexp.MatchString(tc.err, err.Error()); matched == false {
-					t.Errorf("Error matching regex: %v \t Got: %v", tc.err, err)
+					t.Fatalf("Error matching regex: %v \t Got: %v", tc.err, err)
 				}
 			} else if len(tc.err) != 0 {
 				t.Fatalf("Expected error, got none")
 			}
 			wg.Wait()
 			if bytes.Compare(recv, tc.recv) != 0 {
-				t.Errorf("Expected: %v \t Got: %v", tc.recv, recv)
+				t.Fatalf("Expected: %v \t Got: %v", tc.recv, recv)
 			}
 		})
 	}
@@ -573,7 +573,7 @@ func TestVisualize(t *testing.T) {
 			err := visualize(g, tc.cfg)
 			if err != nil {
 				if matched, _ := regexp.MatchString(tc.err, err.Error()); matched == false {
-					t.Errorf("Error matching regex: %v \t Got: %v", tc.err, err)
+					t.Fatalf("Error matching regex: %v \t Got: %v", tc.err, err)
 				}
 			} else if len(tc.err) != 0 {
 				t.Fatalf("Expected error, got none")
