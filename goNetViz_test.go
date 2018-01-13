@@ -286,7 +286,7 @@ func TestCreateImage(t *testing.T) {
 		height   int
 		data     string
 	}{
-		{name: "No Filename", filename: "", data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />"},
+		{name: "No Filename", filename: fmt.Sprintf("%s/test.svg", dir), data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />"},
 		{name: "Just directory name", filename: dir, data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />"},
 		{name: "No Data", filename: fmt.Sprintf("%s/test.svg", dir)},
 		{name: "Without errors", filename: fmt.Sprintf("%s/test.svg", dir), data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />"},
@@ -316,8 +316,8 @@ func TestCreateVisualization(t *testing.T) {
 		err     string
 	}{
 		{name: "No Data", xLimit: 1, prefix: fmt.Sprintf("%s/noData", dir), num: 1, cfg: configs{1, 0, 0, 0, solder, 1, 1500, "dev", "filter", "file", "prefix"}, err: "No image data provided"},
-		{name: "Solid image", content: []data{{toa: 0, payload: []byte{0xCA, 0xFE, 0xBA, 0xBE}}}, xLimit: 1, prefix: fmt.Sprintf("%s/solid", dir), num: 1, cfg: configs{24, 0, 0, 0, solder, 1, 1500, "dev", "filter", "file", "prefix"}},
-		{name: "Timeslize image", content: []data{{toa: 0, payload: []byte{0xCA, 0xFE, 0xBA, 0xBE}}}, xLimit: 1, prefix: fmt.Sprintf("%s/timeslize", dir), num: 1, cfg: configs{24, 0, 0, 0, timeslize, 1, 1500, "dev", "filter", "file", "prefix"}},
+		{name: "Solid image", content: []data{{toa: 0, payload: []byte{0xCA, 0xFE, 0xBA, 0xBE}}}, xLimit: 1, prefix: fmt.Sprintf("%s/solid", dir), num: 1, cfg: configs{24, 0, 0, 0, solder, 1, 1500, "dev", "filter", "file", fmt.Sprintf("%s/solid", dir)}},
+		{name: "Timeslize image", content: []data{{toa: 0, payload: []byte{0xCA, 0xFE, 0xBA, 0xBE}}}, xLimit: 1, prefix: fmt.Sprintf("%s/timeslize", dir), num: 1, cfg: configs{24, 0, 0, 0, timeslize, 1, 1500, "dev", "filter", "file", fmt.Sprintf("%s/timeslize", dir)}},
 	}
 
 	for _, tc := range tests {
@@ -505,7 +505,7 @@ func TestExtractInformation(t *testing.T) {
 		recv []byte
 		err  string
 	}{
-		{name: "No file", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", "noFile", ""}, err: "Could not open file"},
+		{name: "No file", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", "noFile", fmt.Sprintf("%s/noFile", dir)}, err: "Could not open file"},
 		{name: "Not a svg", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", fmt.Sprintf("%s", notSvgFile.Name()), fmt.Sprintf("%s/not_a_svg", dir)}},
 		{name: "Without Comment", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", fmt.Sprintf("%s", withoutCommentFile.Name()), fmt.Sprintf("%s/without_comment", dir)}},
 		{name: "Valid svg", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", fmt.Sprintf("%s", validSvgFile.Name()), fmt.Sprintf("%s/valid_svg", dir)}, recv: []byte{0, 0}},
@@ -564,7 +564,7 @@ func TestVisualize(t *testing.T) {
 		err  string
 	}{
 		{name: "solder", cfg: configs{1, 2, 0, 0, solder, 1, 1500, "", "", fmt.Sprintf("%s", fakePcap.Name()), fmt.Sprintf("%s/solder", tdir)}},
-		{name: "terminal", cfg: configs{24, 0, 0, 0, terminal, 1, 1500, "", "", fmt.Sprintf("%s", fakePcap.Name()), ""}},
+		{name: "terminal", cfg: configs{24, 0, 0, 0, terminal, 1, 1500, "", "", fmt.Sprintf("%s", fakePcap.Name()), fmt.Sprintf("%s/terminal", tdir)}},
 		{name: "timeslize", cfg: configs{1, 2, 0, 0, timeslize, 1, 1500, "", "", fmt.Sprintf("%s", fakePcap.Name()), fmt.Sprintf("%s/timeslize", tdir)}},
 	}
 	for _, tc := range tests {
