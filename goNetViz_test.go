@@ -433,9 +433,9 @@ func TestCreatePacket(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ch := make(chan []byte)
 			var wg sync.WaitGroup
+			wg.Add(1)
 			var recv []byte
 			go func() {
-				wg.Add(1)
 				defer wg.Done()
 				select {
 				case v, _ := <-ch:
@@ -448,6 +448,7 @@ func TestCreatePacket(t *testing.T) {
 				if matched, _ := regexp.MatchString(tc.err, err.Error()); matched == false {
 					t.Fatalf("Error matching regex: %v \t Got: %v", tc.err, err)
 				}
+				wg.Done()
 			} else if len(tc.err) != 0 {
 				t.Fatalf("Expected error, got none")
 			}
@@ -515,10 +516,10 @@ func TestExtractInformation(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			g, _ := errgroup.WithContext(context.Background())
 			var wg sync.WaitGroup
+			wg.Add(1)
 			ch := make(chan []byte)
 			var recv []byte
 			go func() {
-				wg.Add(1)
 				defer wg.Done()
 				for i, ok := <-ch; ok; i, ok = <-ch {
 					recv = append(recv, i...)
@@ -529,6 +530,7 @@ func TestExtractInformation(t *testing.T) {
 				if matched, _ := regexp.MatchString(tc.err, err.Error()); matched == false {
 					t.Fatalf("Error matching regex: %v \t Got: %v", tc.err, err)
 				}
+				wg.Done()
 			} else if len(tc.err) != 0 {
 				t.Fatalf("Expected error, got none")
 			}
