@@ -340,6 +340,7 @@ func TestCreateTerminalVisualization(t *testing.T) {
 		{name: "pkt1Len == pkt2Len", pkt1: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, pkt2: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, cfg: configs{3, 0, 0, 0, timeslize, 1, 1500, "dev", "filter", "file", "prefix"}},
 		{name: "pkt1Len == 0", pkt1: data{toa: 0, payload: []byte{}}, pkt2: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, cfg: configs{3, 0, 0, 0, timeslize, 1, 1500, "dev", "filter", "file", "prefix"}},
 		{name: "pkt2Len == 0", pkt1: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, pkt2: data{toa: 0, payload: []byte{}}, cfg: configs{3, 0, 0, 0, timeslize, 1, 1500, "dev", "filter", "file", "prefix"}},
+		{name: "bytePos > xlimit", pkt1: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, pkt2: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, cfg: configs{24, 0, 0, 2, timeslize, 1, 1500, "dev", "filter", "file", "prefix"}},
 	}
 
 	for _, tc := range tests {
@@ -568,6 +569,7 @@ func TestVisualize(t *testing.T) {
 		{name: "solder", cfg: configs{1, 2, 0, 0, solder, 1, 1500, "", "", fmt.Sprintf("%s", fakePcap.Name()), fmt.Sprintf("%s/solder", tdir)}},
 		{name: "terminal", cfg: configs{24, 0, 0, 0, terminal, 1, 1500, "", "", fmt.Sprintf("%s", fakePcap.Name()), fmt.Sprintf("%s/terminal", tdir)}},
 		{name: "timeslize", cfg: configs{1, 2, 0, 0, timeslize, 1, 1500, "", "", fmt.Sprintf("%s", fakePcap.Name()), fmt.Sprintf("%s/timeslize", tdir)}},
+		{name: "No Source", cfg: configs{1, 2, 0, 0, timeslize, 1, 1500, "", "", "", fmt.Sprintf("%s/NoSource", tdir)}, err: "Source is missing"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
