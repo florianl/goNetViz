@@ -131,7 +131,7 @@ func createTerminalVisualization(pkt1, pkt2 data, cfg configs) {
 
 }
 
-func createImage(filename string, width, height int, content string, scale int, bitsPerPixel int) error {
+func createImage(filename string, width, height int, content string, cfg configs) error {
 	if len(content) == 0 {
 		return fmt.Errorf("No content to write")
 	}
@@ -146,8 +146,14 @@ func createImage(filename string, width, height int, content string, scale int, 
 		return fmt.Errorf("Could not write header: %s", err.Error())
 	}
 
-	if _, err := f.WriteString(fmt.Sprintf("<!--\n\tgoNetViz \"%s\"\n\tScale=%d\n\tBitsPerPixel=%d\n-->\n",
-		Version, scale, bitsPerPixel)); err != nil {
+	var source string
+	if len(cfg.file) > 0 {
+		source = cfg.file
+	} else {
+		source = cfg.dev
+	}
+	if _, err := f.WriteString(fmt.Sprintf("<!--\n\tgoNetViz \"%s\"\n\tScale=%d\n\tBitsPerPixel=%d\n\tDTG=\"%s\"\n\tSource=\"%s\"\n\tFilter=\"%s\"\n-->\n",
+		Version, cfg.scale, cfg.bpP, time.Now().UTC(), source, cfg.filter)); err != nil {
 		f.Close()
 		return fmt.Errorf("Could not write additional information: %s", err.Error())
 	}
@@ -222,7 +228,7 @@ func createVisualization(g *errgroup.Group, content []data, num uint, cfg config
 	filename += ".svg"
 
 	g.Go(func() error {
-		return createImage(filename, (xMax+1)*scale, (yPos+1)*scale, svg.String(), scale, bitsPerPixel)
+		return createImage(filename, (xMax+1)*scale, (yPos+1)*scale, svg.String(), cfg)
 	})
 }
 

@@ -284,17 +284,18 @@ func TestCreateImage(t *testing.T) {
 		filename string
 		width    int
 		height   int
+		cfg      configs
 		data     string
 	}{
-		{name: "No Filename", filename: fmt.Sprintf("%s/test.svg", dir), data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />"},
-		{name: "Just directory name", filename: dir, data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />"},
-		{name: "No Data", filename: fmt.Sprintf("%s/test.svg", dir)},
-		{name: "Without errors", filename: fmt.Sprintf("%s/test.svg", dir), data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />"},
+		{name: "No Filename", filename: fmt.Sprintf("%s/test.svg", dir), cfg: configs{24, 0, 0, 0, solder, 1, 1500, "dev", "filter", "file", fmt.Sprintf("%s/solid", dir)}, data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />"},
+		{name: "Just directory name", filename: dir, cfg: configs{24, 0, 0, 0, solder, 1, 1500, "dev", "filter", "file", fmt.Sprintf("%s/solid", dir)}, data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />"},
+		{name: "No Data", filename: fmt.Sprintf("%s/test.svg", dir), cfg: configs{24, 0, 0, 0, solder, 1, 1500, "dev", "filter", "file", fmt.Sprintf("%s/solid", dir)}},
+		{name: "Without errors", filename: fmt.Sprintf("%s/test.svg", dir), cfg: configs{24, 0, 0, 0, solder, 1, 1500, "dev", "filter", "file", fmt.Sprintf("%s/solid", dir)}, data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />"},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			createImage(tc.filename, tc.width, tc.height, tc.data, 1, 1)
+			createImage(tc.filename, tc.width, tc.height, tc.data, tc.cfg)
 		})
 	}
 }
