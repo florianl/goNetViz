@@ -290,7 +290,8 @@ func TestCreateImage(t *testing.T) {
 		{name: "No Filename", filename: fmt.Sprintf("%s/test.svg", dir), cfg: configs{24, 0, 0, 0, solder, 1, 1500, "dev", "filter", "file", fmt.Sprintf("%s/solid", dir)}, data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />"},
 		{name: "Just directory name", filename: dir, cfg: configs{24, 0, 0, 0, solder, 1, 1500, "dev", "filter", "file", fmt.Sprintf("%s/solid", dir)}, data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />"},
 		{name: "No Data", filename: fmt.Sprintf("%s/test.svg", dir), cfg: configs{24, 0, 0, 0, solder, 1, 1500, "dev", "filter", "file", fmt.Sprintf("%s/solid", dir)}},
-		{name: "Without errors", filename: fmt.Sprintf("%s/test.svg", dir), cfg: configs{24, 0, 0, 0, solder, 1, 1500, "dev", "filter", "file", fmt.Sprintf("%s/solid", dir)}, data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />"},
+		{name: "Without errors from File", filename: fmt.Sprintf("%s/test.svg", dir), cfg: configs{24, 0, 0, 0, solder, 1, 1500, "", "filter", "file", fmt.Sprintf("%s/solid", dir)}, data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />"},
+		{name: "Without errors from Dev", filename: fmt.Sprintf("%s/test.svg", dir), cfg: configs{24, 0, 0, 0, solder, 1, 1500, "dev", "filter", "", fmt.Sprintf("%s/solid", dir)}, data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />"},
 	}
 
 	for _, tc := range tests {
@@ -583,6 +584,59 @@ func TestVisualize(t *testing.T) {
 			} else if len(tc.err) != 0 {
 				t.Fatalf("Expected error, got none")
 			}
+		})
+	}
+}
+
+func TestReconstruct(t *testing.T) {
+	tdir, ferr := ioutil.TempDir("", "reconstruct")
+	if ferr != nil {
+		t.Fatal(ferr)
+	}
+	defer os.RemoveAll(tdir)
+	fakePcap, ferr := ioutil.TempFile(tdir, "fake.pcap")
+	if ferr != nil {
+		t.Fatal(ferr)
+	}
+	defer os.Remove(fakePcap.Name())
+
+	ferr = ioutil.WriteFile(fakePcap.Name(), fakeData, 0644)
+	if ferr != nil {
+		t.Fatal(ferr)
+	}
+	defer fakePcap.Close()
+
+	tests := []struct {
+		name string
+		cfg  configs
+		err  string
+	}{
+		{name: "solder", cfg: configs{1, 2, 0, 0, solder, 1, 1500, "", "", fmt.Sprintf("%s", fakePcap.Name()), fmt.Sprintf("%s/solder", tdir)}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			g, _ := errgroup.WithContext(context.Background())
+			err := reconstruct(g, tc.cfg)
+			if err != nil {
+				if matched, _ := regexp.MatchString(tc.err, err.Error()); matched == false {
+					t.Fatalf("Error matching regex: %v \t Got: %v", tc.err, err)
+				}
+			} else if len(tc.err) != 0 {
+				t.Fatalf("Expected error, got none")
+			}
+		})
+	}
+}
+
+func TestMain(t *testing.T) {
+	tests := []struct {
+		name string
+	}{
+		{name: "without options"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			main()
 		})
 	}
 }
