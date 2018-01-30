@@ -36,17 +36,19 @@ type data struct {
 
 // configs represents all the configuration data
 type configs struct {
-	bpP    uint   // Bits per Pixel
-	ppI    uint   // Number of packets per Image
-	ts     int64  // "Duration" for one Image
-	limit  uint   // Number of network packets to process
-	stil   uint   // Type of illustration
-	scale  uint   // Scaling factor for output
-	xlimit uint   // Limit of bytes per packet
-	dev    string // network interface as source of visualization
-	filter string // filter for the network interface
-	file   string //  file as source of visualization
-	prefix string // prefix for the visualization results
+	bpP        uint                                      // Bits per Pixel
+	ppI        uint                                      // Number of packets per Image
+	ts         int64                                     // "Duration" for one Image
+	limit      uint                                      // Number of network packets to process
+	stil       uint                                      // Type of illustration
+	scale      uint                                      // Scaling factor for output
+	xlimit     uint                                      // Limit of bytes per packet
+	dev        string                                    // network interface as source of visualization
+	filter     string                                    // filter for the network interface
+	file       string                                    //  file as source of visualization
+	prefix     string                                    // prefix for the visualization results
+	logicGate  func(payload []byte, operand byte) []byte // logical operation on the input bytes
+	logicValue byte                                      // value for the logical operation
 }
 
 func getBitsFromPacket(packet []byte, byteP, bitP *int, bpP uint) uint8 {
@@ -232,8 +234,12 @@ func createVisualization(g *errgroup.Group, content []data, num uint, cfg config
 	})
 }
 
-func handlePackets(g *errgroup.Group, ps *gopacket.PacketSource, num uint, ch chan<- data) {
+func handlePackets(g *errgroup.Group, ps *gopacket.PacketSource, cfg configs, ch chan<- data) {
 	var count uint
+	var num = cfg.limit
+	var logicValue = cfg.logicValue
+	var logicGate = cfg.logicGate
+
 	for packet := range ps.Packets() {
 		count++
 		if num != 0 && count > num {
@@ -244,7 +250,8 @@ func handlePackets(g *errgroup.Group, ps *gopacket.PacketSource, num uint, ch ch
 		if len(elements) == 0 {
 			continue
 		}
-		ch <- data{toa: (packet.Metadata().CaptureInfo.Timestamp.UnixNano() / int64(time.Microsecond)), payload: packet.Data()}
+
+		ch <- data{toa: (packet.Metadata().CaptureInfo.Timestamp.UnixNano() / int64(time.Microsecond)), payload: logicGate(packet.Data(), logicValue)}
 	}
 	close(ch)
 	return
@@ -295,7 +302,55 @@ func initSource(dev, file, filter string) (handle *pcap.Handle, err error) {
 	return
 }
 
-func checkConfig(cfg *configs, console, rebuild bool) error {
+func getOperand(val string) (byte, error) {
+
+	i, err := strconv.Atoi(val)
+	if err != nil {
+		return 0x00, err
+	}
+
+	if i < 0 || i > 255 {
+		return 0x0, fmt.Errorf("%s is not a valid value", val)
+	}
+
+	return byte(i), nil
+}
+
+func checkConfig(cfg *configs, console, rebuild bool, lGate string, lValue string) error {
+	var err error
+
+	switch lGate {
+	case "xor":
+		cfg.logicGate = func(payload []byte, operand byte) []byte {
+			for _, i := range payload {
+				payload[i] ^= operand
+			}
+			return payload
+		}
+	case "or":
+		cfg.logicGate = func(payload []byte, operand byte) []byte {
+			for _, i := range payload {
+				payload[i] |= operand
+			}
+			return payload
+		}
+	case "and":
+		cfg.logicGate = func(payload []byte, operand byte) []byte {
+			for _, i := range payload {
+				payload[i] &= operand
+			}
+			return payload
+		}
+	default:
+		cfg.logicGate = func(payload []byte, operand byte) []byte {
+			return payload
+		}
+	}
+
+	cfg.logicValue, err = getOperand(lValue)
+	if err != nil {
+		return err
+	}
 
 	if console {
 		cfg.stil |= terminal
@@ -362,7 +417,7 @@ func visualize(g *errgroup.Group, cfg configs) error {
 	packetSource := gopacket.NewPacketSource(handle, layers.LayerTypeEthernet)
 	packetSource.DecodeOptions = gopacket.Lazy
 
-	go handlePackets(g, packetSource, cfg.limit, ch)
+	go handlePackets(g, packetSource, cfg, ch)
 
 	switch cfg.stil {
 	case solder:
@@ -605,6 +660,9 @@ func main() {
 	scale := flag.Uint("scale", 1, "Scaling factor for output.\n\tWorks not for output on terminal.")
 	xlimit := flag.Uint("limit", 1500, "Maximim number of bytes per packet.\n\tIf your MTU is higher than the default value of 1500 you might change this value.")
 	rebuild := flag.Bool("reverse", false, "Create a pcap from a svg")
+	lGate := flag.String("logicGate", "", "Logical operation for the input")
+	lValue := flag.String("logicValue", "0xFF", "Operand for the logical operation")
+
 	flag.Parse()
 
 	if *lst {
@@ -637,7 +695,7 @@ func main() {
 	cfg.filter = *filter
 	cfg.prefix = *prefix
 
-	if err := checkConfig(&cfg, *terminalOut, *rebuild); err != nil {
+	if err := checkConfig(&cfg, *terminalOut, *rebuild, *lGate, *lValue); err != nil {
 		fmt.Println("Configuration error:", err)
 		return
 	}
