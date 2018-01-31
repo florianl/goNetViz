@@ -147,28 +147,30 @@ func TestCheckConfig(t *testing.T) {
 		cfg     configs
 		console bool
 		rebuild bool
+		lGate   string
+		lValue  string
 		err     string
 	}{
 		// Testing different output stiles
-		{name: "Two Bits per Pixel", cfg: configs{2, 0, 0, 0, terminal, 1, 1500, "dev", "filter", "file", "prefix"}, err: "-bits 2 is not divisible by three or one"},
-		{name: "One Bit per Pixel", cfg: configs{1, 0, 0, 0, terminal, 1, 1500, "dev", "filter", "file", "prefix"}},
-		{name: "27 Bits per Pixel", cfg: configs{27, 0, 0, 0, terminal, 1, 1500, "dev", "filter", "file", "prefix"}, err: "-bits 27 must be smaller than 25"},
-		{name: "Terminal only", cfg: configs{3, 0, 0, 0, terminal, 1, 1500, "dev", "filter", "file", "prefix"}},
-		{name: "Terminal and Timeslize", cfg: configs{3, 0, 0, 0, (terminal | timeslize), 1, 1500, "dev", "filter", "file", "prefix"}, console: true, err: "-timeslize and -terminal can't be combined"},
-		{name: "Fixed Slize", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "dev", "filter", "file", "prefix"}},
-		{name: "Time Slize", cfg: configs{1, 0, 50, 0, 0, 1, 1500, "dev", "filter", "file", "prefix"}},
-		{name: "Scale and Terminal", cfg: configs{1, 0, 0, 0, terminal, 2, 1500, "dev", "filter", "file", "prefix"}, console: true, err: "-scale and -terminal can't be combined"},
-		{name: "Time Slize", cfg: configs{1, 0, 50, 0, 0, 0, 1500, "dev", "filter", "file", "prefix"}, err: "scale factor has to be at least 1"},
-		{name: "Time Slize, Terminal and Rebuild", cfg: configs{1, 0, 50, 0, 0, 0, 1500, "dev", "filter", "file", "prefix"}, console: true, rebuild: true, err: "-terminal, -timeslize and -reverse can't be combined"},
-		{name: "Time Slize and Rebuild", cfg: configs{1, 0, 50, 0, 0, 0, 1500, "dev", "filter", "file", "prefix"}, rebuild: true, err: "-timeslize and -reverse can't be combined"},
-		{name: "Terminal and Rebuild", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "dev", "filter", "file", "prefix"}, console: true, rebuild: true, err: "-terminal and -reverse can't be combined"},
-		{name: "Rebuild without file", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "dev", "filter", "", "prefix"}, console: false, rebuild: true, err: "-file is needed as source"},
-		{name: "Jumbo frame", cfg: configs{1, 0, 0, 0, 0, 1, 15000, "dev", "filter", "file", "prefix"}, err: "limit has to be smallerthan a Jumbo frame (9000 bytes)"},
+		{name: "Two Bits per Pixel", cfg: configs{2, 0, 0, 0, terminal, 1, 1500, "dev", "filter", "file", "prefix", nil, 0}, lGate: "xor", lValue: "255", err: "-bits 2 is not divisible by three or one"},
+		{name: "One Bit per Pixel", cfg: configs{1, 0, 0, 0, terminal, 1, 1500, "dev", "filter", "file", "prefix", nil, 0}, lGate: "xor", lValue: "255"},
+		{name: "27 Bits per Pixel", cfg: configs{27, 0, 0, 0, terminal, 1, 1500, "dev", "filter", "file", "prefix", nil, 0}, lGate: "xor", lValue: "255", err: "-bits 27 must be smaller than 25"},
+		{name: "Terminal only", cfg: configs{3, 0, 0, 0, terminal, 1, 1500, "dev", "filter", "file", "prefix", nil, 0}, lGate: "xor", lValue: "255"},
+		{name: "Terminal and Timeslize", cfg: configs{3, 0, 0, 0, (terminal | timeslize), 1, 1500, "dev", "filter", "file", "prefix", nil, 0}, lGate: "xor", lValue: "255", console: true, err: "-timeslize and -terminal can't be combined"},
+		{name: "Fixed Slize", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "dev", "filter", "file", "prefix", nil, 0}, lGate: "xor", lValue: "255"},
+		{name: "Time Slize", cfg: configs{1, 0, 50, 0, 0, 1, 1500, "dev", "filter", "file", "prefix", nil, 0}, lGate: "xor", lValue: "255"},
+		{name: "Scale and Terminal", cfg: configs{1, 0, 0, 0, terminal, 2, 1500, "dev", "filter", "file", "prefix", nil, 0}, lGate: "xor", lValue: "255", console: true, err: "-scale and -terminal can't be combined"},
+		{name: "Time Slize", cfg: configs{1, 0, 50, 0, 0, 0, 1500, "dev", "filter", "file", "prefix", nil, 0}, lGate: "xor", lValue: "255", err: "scale factor has to be at least 1"},
+		{name: "Time Slize, Terminal and Rebuild", cfg: configs{1, 0, 50, 0, 0, 0, 1500, "dev", "filter", "file", "prefix", nil, 0}, lGate: "xor", lValue: "255", console: true, rebuild: true, err: "-terminal, -timeslize and -reverse can't be combined"},
+		{name: "Time Slize and Rebuild", cfg: configs{1, 0, 50, 0, 0, 0, 1500, "dev", "filter", "file", "prefix", nil, 0}, lGate: "xor", lValue: "255", rebuild: true, err: "-timeslize and -reverse can't be combined"},
+		{name: "Terminal and Rebuild", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "dev", "filter", "file", "prefix", nil, 0}, lGate: "xor", lValue: "255", console: true, rebuild: true, err: "-terminal and -reverse can't be combined"},
+		{name: "Rebuild without file", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "dev", "filter", "", "prefix", nil, 0}, lGate: "xor", lValue: "255", console: false, rebuild: true, err: "-file is needed as source"},
+		{name: "Jumbo frame", cfg: configs{1, 0, 0, 0, 0, 1, 15000, "dev", "filter", "file", "prefix", nil, 0}, lGate: "xor", lValue: "255", err: "limit has to be smallerthan a Jumbo frame (9000 bytes)"},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			res := checkConfig(&tc.cfg, tc.console, tc.rebuild)
+			res := checkConfig(&tc.cfg, tc.console, tc.rebuild, tc.lGate, tc.lValue)
 
 			if tc.err != "" {
 				if res.Error() != tc.err {
@@ -287,11 +289,11 @@ func TestCreateImage(t *testing.T) {
 		cfg      configs
 		data     string
 	}{
-		{name: "No Filename", filename: fmt.Sprintf("%s/test.svg", dir), cfg: configs{24, 0, 0, 0, solder, 1, 1500, "dev", "filter", "file", fmt.Sprintf("%s/solid", dir)}, data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />"},
-		{name: "Just directory name", filename: dir, cfg: configs{24, 0, 0, 0, solder, 1, 1500, "dev", "filter", "file", fmt.Sprintf("%s/solid", dir)}, data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />"},
-		{name: "No Data", filename: fmt.Sprintf("%s/test.svg", dir), cfg: configs{24, 0, 0, 0, solder, 1, 1500, "dev", "filter", "file", fmt.Sprintf("%s/solid", dir)}},
-		{name: "Without errors from File", filename: fmt.Sprintf("%s/test.svg", dir), cfg: configs{24, 0, 0, 0, solder, 1, 1500, "", "filter", "file", fmt.Sprintf("%s/solid", dir)}, data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />"},
-		{name: "Without errors from Dev", filename: fmt.Sprintf("%s/test.svg", dir), cfg: configs{24, 0, 0, 0, solder, 1, 1500, "dev", "filter", "", fmt.Sprintf("%s/solid", dir)}, data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />"},
+		{name: "No Filename", filename: fmt.Sprintf("%s/test.svg", dir), cfg: configs{24, 0, 0, 0, solder, 1, 1500, "dev", "filter", "file", fmt.Sprintf("%s/solid", dir), nil, 0}, data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />"},
+		{name: "Just directory name", filename: dir, cfg: configs{24, 0, 0, 0, solder, 1, 1500, "dev", "filter", "file", fmt.Sprintf("%s/solid", dir), nil, 0}, data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />"},
+		{name: "No Data", filename: fmt.Sprintf("%s/test.svg", dir), cfg: configs{24, 0, 0, 0, solder, 1, 1500, "dev", "filter", "file", fmt.Sprintf("%s/solid", dir), nil, 0}},
+		{name: "Without errors from File", filename: fmt.Sprintf("%s/test.svg", dir), cfg: configs{24, 0, 0, 0, solder, 1, 1500, "", "filter", "file", fmt.Sprintf("%s/solid", dir), nil, 0}, data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />"},
+		{name: "Without errors from Dev", filename: fmt.Sprintf("%s/test.svg", dir), cfg: configs{24, 0, 0, 0, solder, 1, 1500, "dev", "filter", "", fmt.Sprintf("%s/solid", dir), nil, 0}, data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />"},
 	}
 
 	for _, tc := range tests {
@@ -317,9 +319,9 @@ func TestCreateVisualization(t *testing.T) {
 		cfg     configs
 		err     string
 	}{
-		{name: "No Data", xLimit: 1, prefix: fmt.Sprintf("%s/noData", dir), num: 1, cfg: configs{1, 0, 0, 0, solder, 1, 1500, "dev", "filter", "file", "prefix"}, err: "No image data provided"},
-		{name: "Solid image", content: []data{{toa: 0, payload: []byte{0xCA, 0xFE, 0xBA, 0xBE}}}, xLimit: 1, prefix: fmt.Sprintf("%s/solid", dir), num: 1, cfg: configs{24, 0, 0, 0, solder, 1, 1500, "dev", "filter", "file", fmt.Sprintf("%s/solid", dir)}},
-		{name: "Timeslize image", content: []data{{toa: 0, payload: []byte{0xCA, 0xFE, 0xBA, 0xBE}}}, xLimit: 1, prefix: fmt.Sprintf("%s/timeslize", dir), num: 1, cfg: configs{24, 0, 0, 0, timeslize, 1, 1500, "dev", "filter", "file", fmt.Sprintf("%s/timeslize", dir)}},
+		{name: "No Data", xLimit: 1, prefix: fmt.Sprintf("%s/noData", dir), num: 1, cfg: configs{1, 0, 0, 0, solder, 1, 1500, "dev", "filter", "file", "prefix", nil, 0}, err: "No image data provided"},
+		{name: "Solid image", content: []data{{toa: 0, payload: []byte{0xCA, 0xFE, 0xBA, 0xBE}}}, xLimit: 1, prefix: fmt.Sprintf("%s/solid", dir), num: 1, cfg: configs{24, 0, 0, 0, solder, 1, 1500, "dev", "filter", "file", fmt.Sprintf("%s/solid", dir), nil, 0}},
+		{name: "Timeslize image", content: []data{{toa: 0, payload: []byte{0xCA, 0xFE, 0xBA, 0xBE}}}, xLimit: 1, prefix: fmt.Sprintf("%s/timeslize", dir), num: 1, cfg: configs{24, 0, 0, 0, timeslize, 1, 1500, "dev", "filter", "file", fmt.Sprintf("%s/timeslize", dir), nil, 0}},
 	}
 
 	for _, tc := range tests {
@@ -337,12 +339,12 @@ func TestCreateTerminalVisualization(t *testing.T) {
 		pkt2 data
 		cfg  configs
 	}{
-		{name: "bytePos >= pkt1Len", pkt1: data{toa: 0, payload: []byte{0x01}}, pkt2: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, cfg: configs{3, 0, 0, 0, timeslize, 1, 1500, "dev", "filter", "file", "prefix"}},
-		{name: "bytePos >= pkt2Len", pkt1: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, pkt2: data{toa: 0, payload: []byte{0x01}}, cfg: configs{3, 0, 0, 0, timeslize, 1, 1500, "dev", "filter", "file", "prefix"}},
-		{name: "pkt1Len == pkt2Len", pkt1: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, pkt2: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, cfg: configs{3, 0, 0, 0, timeslize, 1, 1500, "dev", "filter", "file", "prefix"}},
-		{name: "pkt1Len == 0", pkt1: data{toa: 0, payload: []byte{}}, pkt2: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, cfg: configs{3, 0, 0, 0, timeslize, 1, 1500, "dev", "filter", "file", "prefix"}},
-		{name: "pkt2Len == 0", pkt1: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, pkt2: data{toa: 0, payload: []byte{}}, cfg: configs{3, 0, 0, 0, timeslize, 1, 1500, "dev", "filter", "file", "prefix"}},
-		{name: "bytePos > xlimit", pkt1: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, pkt2: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, cfg: configs{24, 0, 0, 2, timeslize, 1, 1500, "dev", "filter", "file", "prefix"}},
+		{name: "bytePos >= pkt1Len", pkt1: data{toa: 0, payload: []byte{0x01}}, pkt2: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, cfg: configs{3, 0, 0, 0, timeslize, 1, 1500, "dev", "filter", "file", "prefix", nil, 0}},
+		{name: "bytePos >= pkt2Len", pkt1: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, pkt2: data{toa: 0, payload: []byte{0x01}}, cfg: configs{3, 0, 0, 0, timeslize, 1, 1500, "dev", "filter", "file", "prefix", nil, 0}},
+		{name: "pkt1Len == pkt2Len", pkt1: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, pkt2: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, cfg: configs{3, 0, 0, 0, timeslize, 1, 1500, "dev", "filter", "file", "prefix", nil, 0}},
+		{name: "pkt1Len == 0", pkt1: data{toa: 0, payload: []byte{}}, pkt2: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, cfg: configs{3, 0, 0, 0, timeslize, 1, 1500, "dev", "filter", "file", "prefix", nil, 0}},
+		{name: "pkt2Len == 0", pkt1: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, pkt2: data{toa: 0, payload: []byte{}}, cfg: configs{3, 0, 0, 0, timeslize, 1, 1500, "dev", "filter", "file", "prefix", nil, 0}},
+		{name: "bytePos > xlimit", pkt1: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, pkt2: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, cfg: configs{24, 0, 0, 2, timeslize, 1, 1500, "dev", "filter", "file", "prefix", nil, 0}},
 	}
 
 	for _, tc := range tests {
@@ -389,7 +391,7 @@ func TestCreatePcap(t *testing.T) {
 		cfg     configs
 		err     string
 	}{
-		{name: "Simple", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", "", fmt.Sprintf("%s/simple", dir)}, payload: []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}},
+		{name: "Simple", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", "", fmt.Sprintf("%s/simple", dir), nil, 0}, payload: []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}},
 	}
 
 	for _, tc := range tests {
@@ -509,10 +511,10 @@ func TestExtractInformation(t *testing.T) {
 		recv []byte
 		err  string
 	}{
-		{name: "No file", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", "noFile", fmt.Sprintf("%s/noFile", dir)}, err: "Could not open file"},
-		{name: "Not a svg", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", fmt.Sprintf("%s", notSvgFile.Name()), fmt.Sprintf("%s/not_a_svg", dir)}},
-		{name: "Without Comment", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", fmt.Sprintf("%s", withoutCommentFile.Name()), fmt.Sprintf("%s/without_comment", dir)}},
-		{name: "Valid svg", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", fmt.Sprintf("%s", validSvgFile.Name()), fmt.Sprintf("%s/valid_svg", dir)}, recv: []byte{0, 0}},
+		{name: "No file", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", "noFile", fmt.Sprintf("%s/noFile", dir), nil, 0}, err: "Could not open file"},
+		{name: "Not a svg", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", fmt.Sprintf("%s", notSvgFile.Name()), fmt.Sprintf("%s/not_a_svg", dir), nil, 0}},
+		{name: "Without Comment", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", fmt.Sprintf("%s", withoutCommentFile.Name()), fmt.Sprintf("%s/without_comment", dir), nil, 0}},
+		{name: "Valid svg", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", fmt.Sprintf("%s", validSvgFile.Name()), fmt.Sprintf("%s/valid_svg", dir), nil, 0}, recv: []byte{0, 0}},
 	}
 
 	for _, tc := range tests {
@@ -563,15 +565,19 @@ func TestVisualize(t *testing.T) {
 	}
 	defer fakePcap.Close()
 
+	pipeline := func(payload []byte, operand byte) []byte {
+		return payload
+	}
+
 	tests := []struct {
 		name string
 		cfg  configs
 		err  string
 	}{
-		{name: "solder", cfg: configs{1, 2, 0, 0, solder, 1, 1500, "", "", fmt.Sprintf("%s", fakePcap.Name()), fmt.Sprintf("%s/solder", tdir)}},
-		{name: "terminal", cfg: configs{24, 0, 0, 0, terminal, 1, 1500, "", "", fmt.Sprintf("%s", fakePcap.Name()), fmt.Sprintf("%s/terminal", tdir)}},
-		{name: "timeslize", cfg: configs{1, 2, 0, 0, timeslize, 1, 1500, "", "", fmt.Sprintf("%s", fakePcap.Name()), fmt.Sprintf("%s/timeslize", tdir)}},
-		{name: "No Source", cfg: configs{1, 2, 0, 0, timeslize, 1, 1500, "", "", "", fmt.Sprintf("%s/NoSource", tdir)}, err: "Source is missing"},
+		{name: "solder", cfg: configs{1, 2, 0, 0, solder, 1, 1500, "", "", fmt.Sprintf("%s", fakePcap.Name()), fmt.Sprintf("%s/solder", tdir), pipeline, 0}},
+		{name: "terminal", cfg: configs{24, 0, 0, 0, terminal, 1, 1500, "", "", fmt.Sprintf("%s", fakePcap.Name()), fmt.Sprintf("%s/terminal", tdir), pipeline, 0}},
+		{name: "timeslize", cfg: configs{1, 2, 0, 0, timeslize, 1, 1500, "", "", fmt.Sprintf("%s", fakePcap.Name()), fmt.Sprintf("%s/timeslize", tdir), pipeline, 0}},
+		{name: "No Source", cfg: configs{1, 2, 0, 0, timeslize, 1, 1500, "", "", "", fmt.Sprintf("%s/NoSource", tdir), nil, 0}, err: "Source is missing"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -611,7 +617,7 @@ func TestReconstruct(t *testing.T) {
 		cfg  configs
 		err  string
 	}{
-		{name: "solder", cfg: configs{1, 2, 0, 0, solder, 1, 1500, "", "", fmt.Sprintf("%s", fakePcap.Name()), fmt.Sprintf("%s/solder", tdir)}},
+		{name: "solder", cfg: configs{1, 2, 0, 0, solder, 1, 1500, "", "", fmt.Sprintf("%s", fakePcap.Name()), fmt.Sprintf("%s/solder", tdir), nil, 0}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

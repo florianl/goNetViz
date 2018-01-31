@@ -306,7 +306,7 @@ func getOperand(val string) (byte, error) {
 
 	i, err := strconv.Atoi(val)
 	if err != nil {
-		return 0x00, err
+		return 0x00, fmt.Errorf("Could not convert %s", val)
 	}
 
 	if i < 0 || i > 255 {
