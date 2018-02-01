@@ -165,17 +165,23 @@ func TestCheckConfig(t *testing.T) {
 		{name: "Time Slize and Rebuild", cfg: configs{1, 0, 50, 0, 0, 0, 1500, "dev", "filter", "file", "prefix", nil, 0}, lGate: "xor", lValue: "255", rebuild: true, err: "-timeslize and -reverse can't be combined"},
 		{name: "Terminal and Rebuild", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "dev", "filter", "file", "prefix", nil, 0}, lGate: "xor", lValue: "255", console: true, rebuild: true, err: "-terminal and -reverse can't be combined"},
 		{name: "Rebuild without file", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "dev", "filter", "", "prefix", nil, 0}, lGate: "xor", lValue: "255", console: false, rebuild: true, err: "-file is needed as source"},
-		{name: "Jumbo frame", cfg: configs{1, 0, 0, 0, 0, 1, 15000, "dev", "filter", "file", "prefix", nil, 0}, lGate: "xor", lValue: "255", err: "limit has to be smallerthan a Jumbo frame (9000 bytes)"},
+		{name: "Jumbo frame", cfg: configs{1, 0, 0, 0, 0, 1, 15000, "dev", "filter", "file", "prefix", nil, 0}, lGate: "xor", lValue: "255", err: "limit has to be smallerthan a Jumbo frame"},
+		{name: "XOR", cfg: configs{1, 0, 0, 0, terminal, 1, 1500, "dev", "filter", "file", "prefix", nil, 0}, lGate: "xor", lValue: "255"},
+		{name: "AND", cfg: configs{1, 0, 0, 0, terminal, 1, 1500, "dev", "filter", "file", "prefix", nil, 0}, lGate: "and", lValue: "255"},
+		{name: "OR", cfg: configs{1, 0, 0, 0, terminal, 1, 1500, "dev", "filter", "file", "prefix", nil, 0}, lGate: "or", lValue: "255"},
+		{name: "None", cfg: configs{1, 0, 0, 0, terminal, 1, 1500, "dev", "filter", "file", "prefix", nil, 0}, lGate: "none", lValue: "255"},
+		{name: "-1", cfg: configs{1, 0, 0, 0, terminal, 1, 1500, "dev", "filter", "file", "prefix", nil, 0}, lGate: "none", lValue: "-1", err: "-1 is not a valid value"},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			res := checkConfig(&tc.cfg, tc.console, tc.rebuild, tc.lGate, tc.lValue)
-
-			if tc.err != "" {
-				if res.Error() != tc.err {
-					t.Fatalf("Expected: %v \t Got: %v", tc.err, res)
+			err := checkConfig(&tc.cfg, tc.console, tc.rebuild, tc.lGate, tc.lValue)
+			if err != nil {
+				if matched, _ := regexp.MatchString(tc.err, err.Error()); matched == false {
+					t.Fatalf("Error matching regex: %v \t Got: %v", tc.err, err)
 				}
+			} else if len(tc.err) != 0 {
+				t.Fatalf("Expected error, got none")
 			}
 		})
 	}
@@ -643,6 +649,40 @@ func TestMain(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			main()
+		})
+	}
+}
+
+func TestGetOperand(t *testing.T) {
+	tests := []struct {
+		name string
+		val  string
+		b    byte
+		e    string
+	}{
+		{name: "-1", val: "-1", b: byte(0), e: "-1 is not a valid value"},
+		{name: "0", val: "0", b: byte(0)},
+		{name: "1", val: "1", b: byte(1)},
+		{name: "254", val: "254", b: byte(254)},
+		{name: "255", val: "255", b: byte(255)},
+		{name: "256", val: "256", b: byte(0), e: "is not a valid value"},
+		// Hex-formated input is not yet supported
+		{name: "0x00", val: "0x00", b: byte(0), e: "Could not convert"},
+		{name: "a", val: "a", b: byte(0), e: "Could not convert"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			b, e := getOperand(tc.val)
+			if e != nil {
+				if matched, _ := regexp.MatchString(tc.e, e.Error()); matched == false {
+					t.Fatalf("Error matching regex: %v \t Got: %v", tc.e, e)
+				}
+			} else if len(tc.e) != 0 {
+				t.Fatalf("Expected error, got none")
+			}
+			if b != tc.b {
+				t.Fatalf("Missmatched return\tExpected: %v \t Got: %v", tc.b, b)
+			}
 		})
 	}
 }
