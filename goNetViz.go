@@ -341,6 +341,20 @@ func checkConfig(cfg *configs, console, rebuild bool, lGate string, lValue strin
 			}
 			return payload
 		}
+	case "not":
+		cfg.logicGate = func(payload []byte, operand byte) []byte {
+			for _, i := range payload {
+				payload[i] = ^(payload[i])
+			}
+			return payload
+		}
+	case "nand":
+		cfg.logicGate = func(payload []byte, operand byte) []byte {
+			for _, i := range payload {
+				payload[i] &^= operand
+			}
+			return payload
+		}
 	default:
 		cfg.logicGate = func(payload []byte, operand byte) []byte {
 			return payload
