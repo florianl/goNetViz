@@ -317,49 +317,61 @@ func getOperand(val string) (byte, error) {
 	return byte(i), nil
 }
 
+func opXor(payload []byte, operand byte) []byte {
+	for _, i := range payload {
+		payload[i] ^= operand
+	}
+	return payload
+}
+
+func opOr(payload []byte, operand byte) []byte {
+	for _, i := range payload {
+		payload[i] |= operand
+	}
+	return payload
+}
+
+func opAnd(payload []byte, operand byte) []byte {
+	for _, i := range payload {
+		payload[i] &= operand
+	}
+	return payload
+}
+
+func opNot(payload []byte, operand byte) []byte {
+	for _, i := range payload {
+		payload[i] = ^(payload[i])
+	}
+	return payload
+}
+
+func opNand(payload []byte, operand byte) []byte {
+	for _, i := range payload {
+		payload[i] &^= operand
+	}
+	return payload
+}
+
+func opDefault(payload []byte, operand byte) []byte {
+	return payload
+}
+
 func checkConfig(cfg *configs, console, rebuild bool, lGate string, lValue string) error {
 	var err error
 
 	switch strings.ToLower(lGate) {
 	case "xor":
-		cfg.logicGate = func(payload []byte, operand byte) []byte {
-			for _, i := range payload {
-				payload[i] ^= operand
-			}
-			return payload
-		}
+		cfg.logicGate = opXor
 	case "or":
-		cfg.logicGate = func(payload []byte, operand byte) []byte {
-			for _, i := range payload {
-				payload[i] |= operand
-			}
-			return payload
-		}
+		cfg.logicGate = opOr
 	case "and":
-		cfg.logicGate = func(payload []byte, operand byte) []byte {
-			for _, i := range payload {
-				payload[i] &= operand
-			}
-			return payload
-		}
+		cfg.logicGate = opAnd
 	case "not":
-		cfg.logicGate = func(payload []byte, operand byte) []byte {
-			for _, i := range payload {
-				payload[i] = ^(payload[i])
-			}
-			return payload
-		}
+		cfg.logicGate = opNot
 	case "nand":
-		cfg.logicGate = func(payload []byte, operand byte) []byte {
-			for _, i := range payload {
-				payload[i] &^= operand
-			}
-			return payload
-		}
+		cfg.logicGate = opNand
 	default:
-		cfg.logicGate = func(payload []byte, operand byte) []byte {
-			return payload
-		}
+		cfg.logicGate = opDefault
 	}
 
 	cfg.logicValue, err = getOperand(lValue)
