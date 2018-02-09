@@ -15,6 +15,7 @@ import (
 	"os/signal"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -319,7 +320,7 @@ func getOperand(val string) (byte, error) {
 func checkConfig(cfg *configs, console, rebuild bool, lGate string, lValue string) error {
 	var err error
 
-	switch lGate {
+	switch strings.ToLower(lGate) {
 	case "xor":
 		cfg.logicGate = func(payload []byte, operand byte) []byte {
 			for _, i := range payload {
