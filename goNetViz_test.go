@@ -686,3 +686,131 @@ func TestGetOperand(t *testing.T) {
 		})
 	}
 }
+
+func TestOpXor(t *testing.T) {
+	tests := []struct {
+		name    string
+		payload []byte
+		operand byte
+		r       []byte
+	}{
+		{name: "0x00", payload: []byte{0x00, 0xFF, 0xAA, 0x55}, operand: 0x00, r: []byte{0x00, 0xFF, 0xAA, 0x55}},
+		{name: "0xFF", payload: []byte{0x00, 0xFF, 0xAA, 0x55}, operand: 0xFF, r: []byte{0xFF, 0x00, 0x55, 0xAA}},
+		{name: "0x0F", payload: []byte{0x00, 0xFF, 0xAA, 0x55}, operand: 0x0F, r: []byte{0x0F, 0xF0, 0xA5, 0x5A}},
+		{name: "0xF0", payload: []byte{0x00, 0xFF, 0xAA, 0x55}, operand: 0xF0, r: []byte{0xF0, 0x0F, 0x5A, 0xA5}}}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			r := opXor(tc.payload, tc.operand)
+			if bytes.Equal(tc.r, r) == false {
+				t.Fatalf("Expected: %v \t Got: %v", tc.r, r)
+			}
+		})
+	}
+}
+
+func TestOpOr(t *testing.T) {
+	tests := []struct {
+		name    string
+		payload []byte
+		operand byte
+		r       []byte
+	}{
+		{name: "0x00", payload: []byte{0x00, 0xFF, 0xAA, 0x55}, operand: 0x00, r: []byte{0x00, 0xFF, 0xAA, 0x55}},
+		{name: "0xFF", payload: []byte{0x00, 0xFF, 0xAA, 0x55}, operand: 0xFF, r: []byte{0xFF, 0xFF, 0xFF, 0xFF}},
+		{name: "0x0F", payload: []byte{0x00, 0xFF, 0xAA, 0x55}, operand: 0x0F, r: []byte{0x0F, 0xFF, 0xAF, 0x5F}},
+		{name: "0xF0", payload: []byte{0x00, 0xFF, 0xAA, 0x55}, operand: 0xF0, r: []byte{0xF0, 0xFF, 0xFA, 0xF5}}}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			r := opOr(tc.payload, tc.operand)
+			if bytes.Equal(tc.r, r) == false {
+				t.Fatalf("Expected: %v \t Got: %v", tc.r, r)
+			}
+		})
+	}
+}
+
+func TestOpAnd(t *testing.T) {
+	tests := []struct {
+		name    string
+		payload []byte
+		operand byte
+		r       []byte
+	}{
+		{name: "0x00", payload: []byte{0x00, 0xFF, 0xAA, 0x55}, operand: 0x00, r: []byte{0x00, 0x00, 0x00, 0x00}},
+		{name: "0xFF", payload: []byte{0x00, 0xFF, 0xAA, 0x55}, operand: 0xFF, r: []byte{0x00, 0xFF, 0xAA, 0x55}},
+		{name: "0x0F", payload: []byte{0x00, 0xFF, 0xAA, 0x55}, operand: 0x0F, r: []byte{0x00, 0x0F, 0x0A, 0x05}},
+		{name: "0xF0", payload: []byte{0x00, 0xFF, 0xAA, 0x55}, operand: 0xF0, r: []byte{0x00, 0xF0, 0xA0, 0x50}}}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			r := opAnd(tc.payload, tc.operand)
+			if bytes.Equal(tc.r, r) == false {
+				t.Fatalf("Expected: %v \t Got: %v", tc.r, r)
+			}
+		})
+	}
+}
+
+func TestOpNot(t *testing.T) {
+	tests := []struct {
+		name    string
+		payload []byte
+		operand byte
+		r       []byte
+	}{
+		{name: "0x00", payload: []byte{0x00, 0xFF, 0xAA, 0x55}, operand: 0x00, r: []byte{0xFF, 0x00, 0x55, 0xAA}},
+		{name: "0xFF", payload: []byte{0x00, 0xFF, 0xAA, 0x55}, operand: 0xFF, r: []byte{0xFF, 0x00, 0x55, 0xAA}},
+		{name: "0x0F", payload: []byte{0x00, 0xFF, 0xAA, 0x55}, operand: 0x0F, r: []byte{0xFF, 0x00, 0x55, 0xAA}},
+		{name: "0xF0", payload: []byte{0x00, 0xFF, 0xAA, 0x55}, operand: 0xF0, r: []byte{0xFF, 0x00, 0x55, 0xAA}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			r := opNot(tc.payload, tc.operand)
+			if bytes.Equal(tc.r, r) == false {
+				t.Fatalf("Expected: %v \t Got: %v", tc.r, r)
+			}
+		})
+	}
+}
+
+func TestOpNand(t *testing.T) {
+	tests := []struct {
+		name    string
+		payload []byte
+		operand byte
+		r       []byte
+	}{
+		{name: "0x00", payload: []byte{0x00, 0xFF, 0xAA, 0x55}, operand: 0x00, r: []byte{0x00, 0xFF, 0xAA, 0x55}},
+		{name: "0xFF", payload: []byte{0x00, 0xFF, 0xAA, 0x55}, operand: 0xFF, r: []byte{0x00, 0x0, 0x00, 0x00}},
+		{name: "0x0F", payload: []byte{0x00, 0xFF, 0xAA, 0x55}, operand: 0x0F, r: []byte{0x00, 0xF0, 0xA0, 0x50}},
+		{name: "0xF0", payload: []byte{0x00, 0xFF, 0xAA, 0x55}, operand: 0xF0, r: []byte{0x00, 0x0F, 0x0A, 0x05}}}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			r := opNand(tc.payload, tc.operand)
+			if bytes.Equal(tc.r, r) == false {
+				t.Fatalf("Expected: %v \t Got: %v", tc.r, r)
+			}
+		})
+	}
+}
+
+func TestOpDefault(t *testing.T) {
+	tests := []struct {
+		name    string
+		payload []byte
+		operand byte
+		r       []byte
+	}{
+		{name: "0x00", payload: []byte{0x00, 0xFF, 0xAA, 0x55}, operand: 0x00, r: []byte{0x00, 0xFF, 0xAA, 0x55}},
+		{name: "0xFF", payload: []byte{0x00, 0xFF, 0xAA, 0x55}, operand: 0xFF, r: []byte{0x00, 0xFF, 0xAA, 0x55}},
+		{name: "0x0F", payload: []byte{0x00, 0xFF, 0xAA, 0x55}, operand: 0x0F, r: []byte{0x00, 0xFF, 0xAA, 0x55}},
+		{name: "0xF0", payload: []byte{0x00, 0xFF, 0xAA, 0x55}, operand: 0xF0, r: []byte{0x00, 0xFF, 0xAA, 0x55}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			r := opDefault(tc.payload, tc.operand)
+			if bytes.Equal(tc.r, r) == false {
+				t.Fatalf("Expected: %v \t Got: %v", tc.r, r)
+			}
+		})
+	}
+}
