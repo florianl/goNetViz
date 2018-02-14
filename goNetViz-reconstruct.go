@@ -65,10 +65,15 @@ func extractInformation(g *errgroup.Group, ch chan []byte, cfg configs) error {
 	svg := bufio.NewScanner(inputfile)
 	var limitX, limitY, bpP int
 	var yLast int
+	var variant string
 	var packet []int
 	defer close(ch)
 
 	limits, err := regexp.Compile("^<svg width=\"(\\d+)\" height=\"(\\d+)\">$")
+	if err != nil {
+		return err
+	}
+	version, err := regexp.Compile("\\s+goNetViz \"([0-9.]+)\"$")
 	if err != nil {
 		return err
 	}
@@ -92,6 +97,11 @@ func extractInformation(g *errgroup.Group, ch chan []byte, cfg configs) error {
 			if len(matches) == 3 {
 				limitX, _ = strconv.Atoi(matches[1])
 				limitY, _ = strconv.Atoi(matches[2])
+			}
+		case len(variant) == 0:
+			matches := version.FindStringSubmatch(svg.Text())
+			if len(matches) == 2 {
+				variant = matches[1]
 			}
 		case bpP == 0:
 			matches := bpPconfig.FindStringSubmatch(svg.Text())
