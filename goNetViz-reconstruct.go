@@ -56,6 +56,24 @@ func createPacket(ch chan<- []byte, packet []int, bpP int) error {
 	return nil
 }
 
+func compareVersion(variant, minimalVersion string) (bool, error) {
+	versionIs := strings.Split(variant, ".")
+	versionShould := strings.Split(minimalVersion, ".")
+
+	if len(versionIs) != len(versionShould) {
+		return false, fmt.Errorf("Versions don't have the same length")
+	}
+
+	for i := range versionShould {
+		if versionIs[i] < versionShould[i] {
+			return false, fmt.Errorf("At least version %s is needed", minimalVersion)
+		} else if versionIs[i] > versionShould[i] {
+			break
+		}
+	}
+	return true, nil
+}
+
 func extractInformation(g *errgroup.Group, ch chan []byte, cfg configs) error {
 	inputfile, err := os.Open(cfg.file)
 	if err != nil {
