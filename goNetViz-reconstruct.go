@@ -10,6 +10,7 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 )
 
 func createPacket(ch chan<- []byte, packet []int, bpP int) error {
