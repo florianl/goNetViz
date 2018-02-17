@@ -8,6 +8,7 @@ import (
 	"github.com/google/gopacket/pcapgo"
 	"golang.org/x/sync/errgroup"
 	"os"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -15,8 +16,19 @@ import (
 
 // reconstructOptions represents all options for reconstruction
 type reconstructOptions struct {
-	bpP    int
-	limitX int
+	BpP    int
+	LimitX int
+	Scale  int
+	Dtg    string
+	Source string
+	Filter string
+}
+
+// svgOptions represents various options for reconstruction
+type svgOptions struct {
+	regex             string
+	expectedType      string
+	reconstructOption string
 }
 
 func createPacket(ch chan<- []byte, packet []int, bpP int) error {
@@ -83,9 +95,11 @@ func compareVersion(variant, minimalVersion string) (bool, error) {
 
 func checkHeader(svg *bufio.Scanner) (reconstructOptions, error) {
 	var options reconstructOptions
-	var limitX, limitY, bpP int
+	var limitX, limitY int
 	var variant string
 	var header bool = false
+	var parseOptions []svgOptions
+	var optionIndex int
 
 	limits, err := regexp.Compile("^<svg width=\"(\\d+)\" height=\"(\\d+)\">$")
 	if err != nil {
@@ -103,10 +117,17 @@ func checkHeader(svg *bufio.Scanner) (reconstructOptions, error) {
 	if err != nil {
 		return options, err
 	}
-	bpPconfig, err := regexp.Compile("\\s+BitsPerPixel=(\\d+)$")
-	if err != nil {
-		return options, err
-	}
+
+	scale := svgOptions{regex: "\\s+Scale=(\\d+)$", expectedType: "int", reconstructOption: "Scale"}
+	parseOptions = append(parseOptions, scale)
+	bpP := svgOptions{regex: "\\s+BitsPerPixel=(\\d+)$", expectedType: "int", reconstructOption: "BpP"}
+	parseOptions = append(parseOptions, bpP)
+	dtg := svgOptions{regex: "\\s+DTG=(\\w+)$", expectedType: "string", reconstructOption: "dtg"}
+	parseOptions = append(parseOptions, dtg)
+	source := svgOptions{regex: "\\s+Source=(\\w+)$", expectedType: "string", reconstructOption: "source"}
+	parseOptions = append(parseOptions, source)
+	filter := svgOptions{regex: "\\s+Filter=(\\w+)$", expectedType: "string", reconstructOption: "filter"}
+	parseOptions = append(parseOptions, filter)
 
 	for svg.Scan() {
 		switch {
@@ -117,24 +138,35 @@ func checkHeader(svg *bufio.Scanner) (reconstructOptions, error) {
 				limitY, _ = strconv.Atoi(matches[2])
 			}
 		case header == false:
-			matches := headerStart.FindStringSubmatch(svg.Text())
-			if len(matches) == 2 {
+			if headerStart.MatchString(svg.Text()) {
 				header = true
-			}
-		case header == true:
-			matches := headerEnd.FindStringSubmatch(svg.Text())
-			if len(matches) == 2 {
-				return options, nil
 			}
 		case len(variant) == 0:
 			matches := version.FindStringSubmatch(svg.Text())
 			if len(matches) == 2 {
 				variant = matches[1]
 			}
-		case bpP == 0:
-			matches := bpPconfig.FindStringSubmatch(svg.Text())
+		default:
+			if optionIndex > len(parseOptions) {
+				return options, fmt.Errorf("Option index is out of range")
+			}
+			regex, err := regexp.Compile(parseOptions[optionIndex].regex)
+			if err != nil {
+				return options, err
+			}
+			matches := regex.FindStringSubmatch(svg.Text())
 			if len(matches) == 2 {
-				bpP, _ = strconv.Atoi(matches[1])
+				if parseOptions[optionIndex].expectedType == "int" {
+					new, _ := strconv.Atoi(matches[1])
+					reflect.ValueOf(&options).Elem().FieldByName(parseOptions[optionIndex].reconstructOption).SetInt(int64(new))
+				} else if parseOptions[optionIndex].expectedType == "string" {
+					reflect.ValueOf(&options).Elem().FieldByName(parseOptions[optionIndex].reconstructOption).SetString(matches[1])
+				}
+				optionIndex += 1
+			} else {
+				if headerEnd.MatchString(svg.Text()) {
+					return options, nil
+				}
 			}
 		}
 	}
@@ -161,7 +193,7 @@ func extractInformation(g *errgroup.Group, ch chan []byte, cfg configs) error {
 	if err != nil {
 		return err
 	}
-	svgEnd, err := regexp.Compile("^</svg>$")
+	svgEnd, err := regexp.Compile("</svg>")
 	if err != nil {
 		return err
 	}
@@ -173,22 +205,22 @@ func extractInformation(g *errgroup.Group, ch chan []byte, cfg configs) error {
 			pixelY, _ := strconv.Atoi(matches[2])
 			if pixelY != yLast {
 				yLast = pixelY
-				if err := createPacket(ch, packet, opt.bpP); err != nil {
+				if err := createPacket(ch, packet, opt.BpP); err != nil {
 					return err
 				}
 				packet = packet[:0]
 			}
-			if pixelX >= opt.limitX {
-				return fmt.Errorf("x-coordinate (%d) is bigger than the limit (%d)\n", pixelX, opt.limitX)
+			if pixelX >= opt.LimitX {
+				return fmt.Errorf("x-coordinate (%d) is bigger than the limit (%d)\n", pixelX, opt.LimitX)
 			}
 			r, _ := strconv.Atoi(matches[3])
 			g, _ := strconv.Atoi(matches[4])
 			b, _ := strconv.Atoi(matches[5])
 			packet = append(packet, r, g, b)
-		} else {
-			end := svgEnd.FindStringSubmatch(svg.Text())
-			if len(end) == 1 && len(packet) != 0 {
-				return createPacket(ch, packet, opt.bpP)
+		} else if svgEnd.MatchString(svg.Text()) {
+			fmt.Println("End matches")
+			if len(packet) != 0 {
+				return createPacket(ch, packet, opt.BpP)
 			}
 		}
 	}
