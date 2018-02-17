@@ -13,6 +13,12 @@ import (
 	"strings"
 )
 
+// reconstructOptions represents all options for reconstruction
+type reconstructOptions struct {
+	bpP    int
+	limitX int
+}
+
 func createPacket(ch chan<- []byte, packet []int, bpP int) error {
 	var buf []byte
 	var tmp int
@@ -75,47 +81,50 @@ func compareVersion(variant, minimalVersion string) (bool, error) {
 	return true, nil
 }
 
-func extractInformation(g *errgroup.Group, ch chan []byte, cfg configs) error {
-	inputfile, err := os.Open(cfg.file)
-	if err != nil {
-		return fmt.Errorf("Could not open file %s: %s\n", cfg.file, err.Error())
-	}
-	defer inputfile.Close()
-	svg := bufio.NewScanner(inputfile)
+func checkHeader(svg *bufio.Scanner) (reconstructOptions, error) {
+	var options reconstructOptions
 	var limitX, limitY, bpP int
-	var yLast int
 	var variant string
-	var packet []int
-	defer close(ch)
+	var header bool = false
 
 	limits, err := regexp.Compile("^<svg width=\"(\\d+)\" height=\"(\\d+)\">$")
 	if err != nil {
-		return err
+		return options, err
+	}
+	headerStart, err := regexp.Compile("^<!--$")
+	if err != nil {
+		return options, err
+	}
+	headerEnd, err := regexp.Compile("^-->$")
+	if err != nil {
+		return options, err
 	}
 	version, err := regexp.Compile("\\s+goNetViz \"([0-9.]+)\"$")
 	if err != nil {
-		return err
+		return options, err
 	}
 	bpPconfig, err := regexp.Compile("\\s+BitsPerPixel=(\\d+)$")
 	if err != nil {
-		return err
-	}
-	pixel, err := regexp.Compile("^<rect x=\"(\\d+)\" y=\"(\\d+)\" width=\"\\d+\" height=\"\\d+\" style=\"fill:rgb\\((\\d+),(\\d+),(\\d+)\\)\" />$")
-	if err != nil {
-		return err
-	}
-	svgEnd, err := regexp.Compile("^</svg>$")
-	if err != nil {
-		return err
+		return options, err
 	}
 
 	for svg.Scan() {
 		switch {
-		case limitX == 0 && limitY == 0:
+		case limitX == 0 && limitY == 0 && header == false:
 			matches := limits.FindStringSubmatch(svg.Text())
 			if len(matches) == 3 {
 				limitX, _ = strconv.Atoi(matches[1])
 				limitY, _ = strconv.Atoi(matches[2])
+			}
+		case header == false:
+			matches := headerStart.FindStringSubmatch(svg.Text())
+			if len(matches) == 2 {
+				header = true
+			}
+		case header == true:
+			matches := headerEnd.FindStringSubmatch(svg.Text())
+			if len(matches) == 2 {
+				return options, nil
 			}
 		case len(variant) == 0:
 			matches := version.FindStringSubmatch(svg.Text())
@@ -127,30 +136,59 @@ func extractInformation(g *errgroup.Group, ch chan []byte, cfg configs) error {
 			if len(matches) == 2 {
 				bpP, _ = strconv.Atoi(matches[1])
 			}
-		default:
-			matches := pixel.FindStringSubmatch(svg.Text())
-			if len(matches) == 6 {
-				pixelX, _ := strconv.Atoi(matches[1])
-				pixelY, _ := strconv.Atoi(matches[2])
-				if pixelY != yLast {
-					yLast = pixelY
-					if err := createPacket(ch, packet, bpP); err != nil {
-						return err
-					}
-					packet = packet[:0]
+		}
+	}
+	return options, fmt.Errorf("No end of header found")
+}
+
+func extractInformation(g *errgroup.Group, ch chan []byte, cfg configs) error {
+	inputfile, err := os.Open(cfg.file)
+	if err != nil {
+		return fmt.Errorf("Could not open file %s: %s\n", cfg.file, err.Error())
+	}
+	defer inputfile.Close()
+	svg := bufio.NewScanner(inputfile)
+	var yLast int
+	var packet []int
+	defer close(ch)
+
+	opt, err := checkHeader(svg)
+	if err != nil {
+		return err
+	}
+
+	pixel, err := regexp.Compile("^<rect x=\"(\\d+)\" y=\"(\\d+)\" width=\"\\d+\" height=\"\\d+\" style=\"fill:rgb\\((\\d+),(\\d+),(\\d+)\\)\" />$")
+	if err != nil {
+		return err
+	}
+	svgEnd, err := regexp.Compile("^</svg>$")
+	if err != nil {
+		return err
+	}
+
+	for svg.Scan() {
+		matches := pixel.FindStringSubmatch(svg.Text())
+		if len(matches) == 6 {
+			pixelX, _ := strconv.Atoi(matches[1])
+			pixelY, _ := strconv.Atoi(matches[2])
+			if pixelY != yLast {
+				yLast = pixelY
+				if err := createPacket(ch, packet, opt.bpP); err != nil {
+					return err
 				}
-				if pixelX >= limitX {
-					return fmt.Errorf("x-coordinate (%d) is bigger than the limit (%d)\n", pixelX, limitX)
-				}
-				r, _ := strconv.Atoi(matches[3])
-				g, _ := strconv.Atoi(matches[4])
-				b, _ := strconv.Atoi(matches[5])
-				packet = append(packet, r, g, b)
-			} else {
-				end := svgEnd.FindStringSubmatch(svg.Text())
-				if len(end) == 1 && len(packet) != 0 {
-					return createPacket(ch, packet, bpP)
-				}
+				packet = packet[:0]
+			}
+			if pixelX >= opt.limitX {
+				return fmt.Errorf("x-coordinate (%d) is bigger than the limit (%d)\n", pixelX, opt.limitX)
+			}
+			r, _ := strconv.Atoi(matches[3])
+			g, _ := strconv.Atoi(matches[4])
+			b, _ := strconv.Atoi(matches[5])
+			packet = append(packet, r, g, b)
+		} else {
+			end := svgEnd.FindStringSubmatch(svg.Text())
+			if len(end) == 1 && len(packet) != 0 {
+				return createPacket(ch, packet, opt.bpP)
 			}
 		}
 	}

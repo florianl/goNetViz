@@ -185,8 +185,8 @@ func TestExtractInformation(t *testing.T) {
 		err  string
 	}{
 		{name: "No file", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", "noFile", fmt.Sprintf("%s/noFile", dir), nil, 0}, err: "Could not open file"},
-		{name: "Not a svg", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", fmt.Sprintf("%s", notSvgFile.Name()), fmt.Sprintf("%s/not_a_svg", dir), nil, 0}},
-		{name: "Without Comment", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", fmt.Sprintf("%s", withoutCommentFile.Name()), fmt.Sprintf("%s/without_comment", dir), nil, 0}},
+		{name: "Not a svg", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", fmt.Sprintf("%s", notSvgFile.Name()), fmt.Sprintf("%s/not_a_svg", dir), nil, 0}, err: "No end of header found"},
+		{name: "Without Comment", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", fmt.Sprintf("%s", withoutCommentFile.Name()), fmt.Sprintf("%s/without_comment", dir), nil, 0}, err: "No end of header found"},
 		{name: "Valid svg", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", fmt.Sprintf("%s", validSvgFile.Name()), fmt.Sprintf("%s/valid_svg", dir), nil, 0}, recv: []byte{0, 0}},
 	}
 
@@ -208,7 +208,7 @@ func TestExtractInformation(t *testing.T) {
 				if matched, _ := regexp.MatchString(tc.err, err.Error()); matched == false {
 					t.Fatalf("Error matching regex: %v \t Got: %v", tc.err, err)
 				}
-				wg.Done()
+				return
 			} else if len(tc.err) != 0 {
 				t.Fatalf("Expected error, got none")
 			}
