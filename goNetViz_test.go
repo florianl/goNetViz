@@ -22,10 +22,25 @@ var (
 <rect x="4" y="0" width="1" height="1" style="fill:rgb(0,0,0)" />
 <rect x="5" y="0" width="1" height="1" style="fill:rgb(0,0,0)" />
 </svg>`
-	validSvg = `<?xml version="1.0"?>
+	validSvg003 = `<?xml version="1.0"?>
 <svg width="6" height="2">
 <!--
 	goNetViz "0.0.3"
+	Scale=1
+	BitsPerPixel=3
+	DTG="Thu Nov 09 18:57:00 CET 1989"
+-->
+<rect x="0" y="0" width="1" height="1" style="fill:rgb(0,0,0)" />
+<rect x="1" y="0" width="1" height="1" style="fill:rgb(0,0,0)" />
+<rect x="2" y="0" width="1" height="1" style="fill:rgb(0,0,0)" />
+<rect x="0" y="1" width="1" height="1" style="fill:rgb(0,0,0)" />
+<rect x="1" y="1" width="1" height="1" style="fill:rgb(0,0,0)" />
+<rect x="2" y="1" width="1" height="1" style="fill:rgb(0,0,0)" />
+</svg>`
+	invalidVersion = `<?xml version="1.0"?>
+<svg width="6" height="2">
+<!--
+	goNetViz "0.0.0"
 	Scale=1
 	BitsPerPixel=3
 -->

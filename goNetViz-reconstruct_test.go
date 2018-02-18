@@ -173,8 +173,19 @@ func TestExtractInformation(t *testing.T) {
 	}
 	defer os.Remove(validSvgFile.Name())
 
-	validSvgFile.WriteString(validSvg)
+	validSvgFile.WriteString(validSvg003)
 	if err := validSvgFile.Close(); err != nil {
+		t.Fatalf("Could not close temporary file: %v", err)
+	}
+
+	invalidVersionFile, err := ioutil.TempFile(dir, "invalidVersion.svg")
+	if err != nil {
+		t.Fatalf("Could not create temporary file: %v", err)
+	}
+	defer os.Remove(invalidVersionFile.Name())
+
+	invalidVersionFile.WriteString(invalidVersion)
+	if err := invalidVersionFile.Close(); err != nil {
 		t.Fatalf("Could not close temporary file: %v", err)
 	}
 
@@ -188,6 +199,7 @@ func TestExtractInformation(t *testing.T) {
 		{name: "Not a svg", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", fmt.Sprintf("%s", notSvgFile.Name()), fmt.Sprintf("%s/not_a_svg", dir), nil, 0}, err: "No end of header found"},
 		{name: "Without Comment", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", fmt.Sprintf("%s", withoutCommentFile.Name()), fmt.Sprintf("%s/without_comment", dir), nil, 0}, err: "No end of header found"},
 		{name: "Valid svg", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", fmt.Sprintf("%s", validSvgFile.Name()), fmt.Sprintf("%s/valid_svg", dir), nil, 0}, recv: []byte{0, 0}},
+		{name: "Invalid version", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", fmt.Sprintf("%s", invalidVersionFile.Name()), fmt.Sprintf("%s/invalid_version", dir), nil, 0}, err: "Unrecognized version"},
 	}
 
 	for _, tc := range tests {

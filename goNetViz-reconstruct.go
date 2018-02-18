@@ -83,11 +83,11 @@ func checkVersion(parse *[]svgOptions, version string) (string, error) {
 
 	switch version {
 	case "0.0.3":
-		dtg := svgOptions{regex: "\\s+DTG=(\\w+)$", reconstructOption: "Dtg"}
+		dtg := svgOptions{regex: "\\s+DTG=\"([0-9. :a-zA-Z]+)\"", reconstructOption: "Dtg"}
 		*parse = append(*parse, dtg)
-		source := svgOptions{regex: "\\s+Source=(\\w+)$", reconstructOption: "Source"}
+		source := svgOptions{regex: "\\s+Source=\"(\\w+)\"", reconstructOption: "Source"}
 		*parse = append(*parse, source)
-		filter := svgOptions{regex: "\\s+Filter=(\\w+)$", reconstructOption: "Filter"}
+		filter := svgOptions{regex: "\\s+Filter=\"(\\w+)\"", reconstructOption: "Filter"}
 		*parse = append(*parse, filter)
 		fallthrough
 	case "0.0.4":
@@ -143,6 +143,7 @@ func checkHeader(svg *bufio.Scanner) (reconstructOptions, error) {
 				}
 			}
 		default:
+			fmt.Println(parseOptions[optionIndex].reconstructOption)
 			if optionIndex > len(parseOptions) {
 				return options, fmt.Errorf("Option index is out of range")
 			}
@@ -220,7 +221,6 @@ func extractInformation(g *errgroup.Group, ch chan []byte, cfg configs) error {
 			b, _ := strconv.Atoi(matches[5])
 			packet = append(packet, r, g, b)
 		} else if svgEnd.MatchString(line) {
-			fmt.Println("End matches")
 			if len(packet) != 0 {
 				return createPacket(ch, packet, opt.BpP)
 			}
