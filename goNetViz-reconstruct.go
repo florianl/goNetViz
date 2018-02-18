@@ -122,19 +122,20 @@ func checkHeader(svg *bufio.Scanner) (reconstructOptions, error) {
 	}
 
 	for svg.Scan() {
+		line := svg.Text()
 		switch {
 		case options.LimitX == 0 && options.LimitY == 0 && header == false:
-			matches := limits.FindStringSubmatch(svg.Text())
+			matches := limits.FindStringSubmatch(line)
 			if len(matches) == 3 {
 				options.LimitX, _ = strconv.Atoi(matches[1])
 				options.LimitY, _ = strconv.Atoi(matches[2])
 			}
 		case header == false:
-			if headerStart.MatchString(svg.Text()) {
+			if headerStart.MatchString(line) {
 				header = true
 			}
 		case len(variant) == 0:
-			matches := version.FindStringSubmatch(svg.Text())
+			matches := version.FindStringSubmatch(line)
 			if len(matches) == 2 {
 				variant, err = checkVersion(&parseOptions, matches[1])
 				if err != nil {
@@ -149,7 +150,7 @@ func checkHeader(svg *bufio.Scanner) (reconstructOptions, error) {
 			if err != nil {
 				return options, err
 			}
-			matches := regex.FindStringSubmatch(svg.Text())
+			matches := regex.FindStringSubmatch(line)
 			if len(matches) == 2 {
 				option := reflect.ValueOf(&options).Elem().FieldByName(parseOptions[optionIndex].reconstructOption)
 
@@ -164,7 +165,7 @@ func checkHeader(svg *bufio.Scanner) (reconstructOptions, error) {
 				}
 				optionIndex += 1
 			} else {
-				if headerEnd.MatchString(svg.Text()) {
+				if headerEnd.MatchString(line) {
 					return options, nil
 				}
 			}
@@ -199,7 +200,8 @@ func extractInformation(g *errgroup.Group, ch chan []byte, cfg configs) error {
 	}
 
 	for svg.Scan() {
-		matches := pixel.FindStringSubmatch(svg.Text())
+		line := svg.Text()
+		matches := pixel.FindStringSubmatch(line)
 		if len(matches) == 6 {
 			pixelX, _ := strconv.Atoi(matches[1])
 			pixelY, _ := strconv.Atoi(matches[2])
@@ -217,7 +219,7 @@ func extractInformation(g *errgroup.Group, ch chan []byte, cfg configs) error {
 			g, _ := strconv.Atoi(matches[4])
 			b, _ := strconv.Atoi(matches[5])
 			packet = append(packet, r, g, b)
-		} else if svgEnd.MatchString(svg.Text()) {
+		} else if svgEnd.MatchString(line) {
 			fmt.Println("End matches")
 			if len(packet) != 0 {
 				return createPacket(ch, packet, opt.BpP)
