@@ -17,6 +17,7 @@ import (
 type reconstructOptions struct {
 	BpP    int
 	LimitX int
+	LimitY int
 	Scale  int
 	Dtg    string
 	Source string
@@ -98,7 +99,6 @@ func checkVersion(parse *[]svgOptions, version string) (string, error) {
 
 func checkHeader(svg *bufio.Scanner) (reconstructOptions, error) {
 	var options reconstructOptions
-	var limitX, limitY int
 	var variant string
 	var header bool = false
 	var parseOptions []svgOptions
@@ -123,11 +123,11 @@ func checkHeader(svg *bufio.Scanner) (reconstructOptions, error) {
 
 	for svg.Scan() {
 		switch {
-		case limitX == 0 && limitY == 0 && header == false:
+		case options.LimitX == 0 && options.LimitY == 0 && header == false:
 			matches := limits.FindStringSubmatch(svg.Text())
 			if len(matches) == 3 {
-				limitX, _ = strconv.Atoi(matches[1])
-				limitY, _ = strconv.Atoi(matches[2])
+				options.LimitX, _ = strconv.Atoi(matches[1])
+				options.LimitY, _ = strconv.Atoi(matches[2])
 			}
 		case header == false:
 			if headerStart.MatchString(svg.Text()) {
