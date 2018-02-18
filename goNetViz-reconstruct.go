@@ -11,7 +11,6 @@ import (
 	"reflect"
 	"regexp"
 	"strconv"
-	"strings"
 )
 
 // reconstructOptions represents all options for reconstruction
@@ -27,7 +26,6 @@ type reconstructOptions struct {
 // svgOptions represents various options for reconstruction
 type svgOptions struct {
 	regex             string
-	expectedType      string
 	reconstructOption string
 }
 
@@ -75,22 +73,27 @@ func createPacket(ch chan<- []byte, packet []int, bpP int) error {
 	return nil
 }
 
-func compareVersion(variant, minimalVersion string) (bool, error) {
-	versionIs := strings.Split(variant, ".")
-	versionShould := strings.Split(minimalVersion, ".")
+func checkVersion(parse *[]svgOptions, version string) (string, error) {
 
-	if len(versionIs) != len(versionShould) {
-		return false, fmt.Errorf("Versions don't have the same length")
-	}
+	scale := svgOptions{regex: "\\s+Scale=(\\d+)$", reconstructOption: "Scale"}
+	*parse = append(*parse, scale)
+	bpP := svgOptions{regex: "\\s+BitsPerPixel=(\\d+)$", reconstructOption: "BpP"}
+	*parse = append(*parse, bpP)
 
-	for i := range versionShould {
-		if versionIs[i] < versionShould[i] {
-			return false, fmt.Errorf("At least version %s is needed", minimalVersion)
-		} else if versionIs[i] > versionShould[i] {
-			break
-		}
+	switch version {
+	case "0.0.3":
+		dtg := svgOptions{regex: "\\s+DTG=(\\w+)$", reconstructOption: "dtg"}
+		*parse = append(*parse, dtg)
+		source := svgOptions{regex: "\\s+Source=(\\w+)$", reconstructOption: "source"}
+		*parse = append(*parse, source)
+		filter := svgOptions{regex: "\\s+Filter=(\\w+)$", reconstructOption: "filter"}
+		*parse = append(*parse, filter)
+		fallthrough
+	case "0.0.4":
+	default:
+		return "", fmt.Errorf("Unrecognized version: %s", version)
 	}
-	return true, nil
+	return version, nil
 }
 
 func checkHeader(svg *bufio.Scanner) (reconstructOptions, error) {
@@ -118,17 +121,6 @@ func checkHeader(svg *bufio.Scanner) (reconstructOptions, error) {
 		return options, err
 	}
 
-	scale := svgOptions{regex: "\\s+Scale=(\\d+)$", expectedType: "int", reconstructOption: "Scale"}
-	parseOptions = append(parseOptions, scale)
-	bpP := svgOptions{regex: "\\s+BitsPerPixel=(\\d+)$", expectedType: "int", reconstructOption: "BpP"}
-	parseOptions = append(parseOptions, bpP)
-	dtg := svgOptions{regex: "\\s+DTG=(\\w+)$", expectedType: "string", reconstructOption: "dtg"}
-	parseOptions = append(parseOptions, dtg)
-	source := svgOptions{regex: "\\s+Source=(\\w+)$", expectedType: "string", reconstructOption: "source"}
-	parseOptions = append(parseOptions, source)
-	filter := svgOptions{regex: "\\s+Filter=(\\w+)$", expectedType: "string", reconstructOption: "filter"}
-	parseOptions = append(parseOptions, filter)
-
 	for svg.Scan() {
 		switch {
 		case limitX == 0 && limitY == 0 && header == false:
@@ -144,7 +136,10 @@ func checkHeader(svg *bufio.Scanner) (reconstructOptions, error) {
 		case len(variant) == 0:
 			matches := version.FindStringSubmatch(svg.Text())
 			if len(matches) == 2 {
-				variant = matches[1]
+				variant, err = checkVersion(&parseOptions, matches[1])
+				if err != nil {
+					return options, fmt.Errorf("Unrecognized version: %s", matches[1])
+				}
 			}
 		default:
 			if optionIndex > len(parseOptions) {
@@ -156,11 +151,16 @@ func checkHeader(svg *bufio.Scanner) (reconstructOptions, error) {
 			}
 			matches := regex.FindStringSubmatch(svg.Text())
 			if len(matches) == 2 {
-				if parseOptions[optionIndex].expectedType == "int" {
+				option := reflect.ValueOf(&options).Elem().FieldByName(parseOptions[optionIndex].reconstructOption)
+
+				switch option.Kind() {
+				case reflect.Int:
 					new, _ := strconv.Atoi(matches[1])
-					reflect.ValueOf(&options).Elem().FieldByName(parseOptions[optionIndex].reconstructOption).SetInt(int64(new))
-				} else if parseOptions[optionIndex].expectedType == "string" {
-					reflect.ValueOf(&options).Elem().FieldByName(parseOptions[optionIndex].reconstructOption).SetString(matches[1])
+					option.SetInt(int64(new))
+				case reflect.String:
+					option.SetString(matches[1])
+				default:
+					return options, fmt.Errorf("Unhandeld option type")
 				}
 				optionIndex += 1
 			} else {
