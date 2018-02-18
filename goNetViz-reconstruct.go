@@ -83,11 +83,11 @@ func checkVersion(parse *[]svgOptions, version string) (string, error) {
 
 	switch version {
 	case "0.0.3":
-		dtg := svgOptions{regex: "\\s+DTG=(\\w+)$", reconstructOption: "dtg"}
+		dtg := svgOptions{regex: "\\s+DTG=(\\w+)$", reconstructOption: "Dtg"}
 		*parse = append(*parse, dtg)
-		source := svgOptions{regex: "\\s+Source=(\\w+)$", reconstructOption: "source"}
+		source := svgOptions{regex: "\\s+Source=(\\w+)$", reconstructOption: "Source"}
 		*parse = append(*parse, source)
-		filter := svgOptions{regex: "\\s+Filter=(\\w+)$", reconstructOption: "filter"}
+		filter := svgOptions{regex: "\\s+Filter=(\\w+)$", reconstructOption: "Filter"}
 		*parse = append(*parse, filter)
 		fallthrough
 	case "0.0.4":
