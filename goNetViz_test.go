@@ -37,6 +37,29 @@ var (
 <rect x="1" y="1" width="1" height="1" style="fill:rgb(0,0,0)" />
 <rect x="2" y="1" width="1" height="1" style="fill:rgb(0,0,0)" />
 </svg>`
+	validSvg004 = `<?xml version="1.0"?>
+<svg width="6" height="4">
+<!--
+	goNetViz "0.0.4"
+	Scale=1
+	BitsPerPixel=24
+	DTG="Wed Sep 07 16:05:00 CET 1949"
+	Source="Bonn/Germany"
+	Filter="none"
+-->
+<rect x="0" y="0" width="1" height="1" style="fill:rgb(255,0,0)" />
+<rect x="1" y="0" width="1" height="1" style="fill:rgb(0,255,0)" />
+<rect x="2" y="0" width="1" height="1" style="fill:rgb(0,0,255)" />
+<rect x="0" y="1" width="1" height="1" style="fill:rgb(0,255,0)" />
+<rect x="1" y="1" width="1" height="1" style="fill:rgb(255,0,0)" />
+<rect x="2" y="1" width="1" height="1" style="fill:rgb(0,255,0)" />
+<rect x="0" y="2" width="1" height="1" style="fill:rgb(0,0,255)" />
+<rect x="1" y="2" width="1" height="1" style="fill:rgb(0,255,0)" />
+<rect x="2" y="2" width="1" height="1" style="fill:rgb(255,0,0)" />
+<rect x="0" y="3" width="1" height="1" style="fill:rgb(0,255,0)" />
+<rect x="1" y="3" width="1" height="1" style="fill:rgb(0,0,255)" />
+<rect x="2" y="3" width="1" height="1" style="fill:rgb(0,255,0)" />
+</svg>`
 	invalidVersion = `<?xml version="1.0"?>
 <svg width="6" height="2">
 <!--
