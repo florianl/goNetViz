@@ -45,6 +45,7 @@ type configs struct {
 	filter     string                                    // filter for the network interface
 	file       string                                    //  file as source of visualization
 	prefix     string                                    // prefix for the visualization results
+	logicOp    string                                    // logical operation name
 	logicGate  func(payload []byte, operand byte) []byte // logical operation on the input bytes
 	logicValue byte                                      // value for the logical operation
 }
@@ -152,8 +153,8 @@ func createImage(filename string, width, height int, content string, cfg configs
 	} else {
 		source = cfg.dev
 	}
-	if _, err := f.WriteString(fmt.Sprintf("<!--\n\tgoNetViz \"%s\"\n\tScale=%d\n\tBitsPerPixel=%d\n\tDTG=\"%s\"\n\tSource=\"%s\"\n\tFilter=\"%s\"\n-->\n",
-		Version, cfg.scale, cfg.bpP, time.Now().UTC(), source, cfg.filter)); err != nil {
+	if _, err := f.WriteString(fmt.Sprintf("<!--\n\tgoNetViz \"%s\"\n\tScale=%d\n\tBitsPerPixel=%d\n\tDTG=\"%s\"\n\tSource=\"%s\"\n\tFilter=\"%s\"\n\tLogicGate=\"%s\"\n\tLogicValue=0x%X\n-->\n",
+		Version, cfg.scale, cfg.bpP, time.Now().UTC(), source, cfg.filter, cfg.logicOp, cfg.logicValue)); err != nil {
 		f.Close()
 		return fmt.Errorf("Could not write additional information: %s", err.Error())
 	}
@@ -359,16 +360,22 @@ func checkConfig(cfg *configs, console, rebuild bool, lGate string, lValue strin
 	switch strings.ToLower(lGate) {
 	case "xor":
 		cfg.logicGate = opXor
+		cfg.logicOp = "xor"
 	case "or":
 		cfg.logicGate = opOr
+		cfg.logicOp = "or"
 	case "and":
 		cfg.logicGate = opAnd
+		cfg.logicOp = "and"
 	case "not":
 		cfg.logicGate = opNot
+		cfg.logicOp = "not"
 	case "nand":
 		cfg.logicGate = opNand
+		cfg.logicOp = "nand"
 	default:
 		cfg.logicGate = opDefault
+		cfg.logicOp = "none"
 	}
 
 	cfg.logicValue, err = getOperand(lValue)
@@ -539,7 +546,7 @@ func main() {
 	xlimit := flag.Uint("limit", 1500, "Maximim number of bytes per packet.\n\tIf your MTU is higher than the default value of 1500 you might change this value.")
 	rebuild := flag.Bool("reverse", false, "Create a pcap from a svg")
 	lGate := flag.String("logicGate", "", "Logical operation for the input")
-	lValue := flag.String("logicValue", "0xFF", "Operand for the logical operation")
+	lValue := flag.String("logicValue", "255", "Operand for the logical operation")
 
 	flag.Parse()
 
@@ -580,7 +587,7 @@ func main() {
 
 	if cfg.stil&reverse == cfg.stil {
 		if err := reconstruct(g, cfg); err != nil {
-			fmt.Println("Visualizon error:", err)
+			fmt.Println("Reconstruction error:", err)
 			return
 		}
 	} else {
