@@ -30,12 +30,18 @@ func TestReconstruct(t *testing.T) {
 	}
 	defer fakePcap.Close()
 
+	logic := logicOp{
+		name:  "none",
+		gate:  nil,
+		value: 0,
+	}
+
 	tests := []struct {
 		name string
 		cfg  configs
 		err  string
 	}{
-		{name: "solder", cfg: configs{1, 2, 0, 0, solder, 1, 1500, "", "", fmt.Sprintf("%s", fakePcap.Name()), fmt.Sprintf("%s/solder", tdir), "none", nil, 0}},
+		{name: "solder", cfg: configs{1, 2, 0, 0, solder, 1, 1500, "", "", fmt.Sprintf("%s", fakePcap.Name()), fmt.Sprintf("%s/solder", tdir), logic}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -58,13 +64,20 @@ func TestCreatePcap(t *testing.T) {
 		t.Fatalf("Could not create temporary directory: %v", err)
 	}
 	defer os.RemoveAll(dir)
+
+	logic := logicOp{
+		name:  "none",
+		gate:  nil,
+		value: 0,
+	}
+
 	tests := []struct {
 		name    string
 		payload []byte
 		cfg     configs
 		err     string
 	}{
-		{name: "Simple", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", "", fmt.Sprintf("%s/simple", dir), "none", nil, 0}, payload: []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}},
+		{name: "Simple", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", "", fmt.Sprintf("%s/simple", dir), logic}, payload: []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}},
 	}
 
 	for _, tc := range tests {
@@ -189,17 +202,23 @@ func TestExtractInformation(t *testing.T) {
 		t.Fatalf("Could not close temporary file: %v", err)
 	}
 
+	logic := logicOp{
+		name:  "none",
+		gate:  nil,
+		value: 0,
+	}
+
 	tests := []struct {
 		name string
 		cfg  configs
 		recv []byte
 		err  string
 	}{
-		{name: "No file", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", "noFile", fmt.Sprintf("%s/noFile", dir), "none", nil, 0}, err: "Could not open file"},
-		{name: "Not a svg", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", fmt.Sprintf("%s", notSvgFile.Name()), fmt.Sprintf("%s/not_a_svg", dir), "none", nil, 0}, err: "No end of header found"},
-		{name: "Without Comment", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", fmt.Sprintf("%s", withoutCommentFile.Name()), fmt.Sprintf("%s/without_comment", dir), "none", nil, 0}, err: "No end of header found"},
-		{name: "Valid svg", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", fmt.Sprintf("%s", validSvgFile.Name()), fmt.Sprintf("%s/valid_svg", dir), "none", nil, 0}, recv: []byte{0, 0}},
-		{name: "Invalid version", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", fmt.Sprintf("%s", invalidVersionFile.Name()), fmt.Sprintf("%s/invalid_version", dir), "none", nil, 0}, err: "Unrecognized version"},
+		{name: "No file", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", "noFile", fmt.Sprintf("%s/noFile", dir), logic}, err: "Could not open file"},
+		{name: "Not a svg", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", fmt.Sprintf("%s", notSvgFile.Name()), fmt.Sprintf("%s/not_a_svg", dir), logic}, err: "No end of header found"},
+		{name: "Without Comment", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", fmt.Sprintf("%s", withoutCommentFile.Name()), fmt.Sprintf("%s/without_comment", dir), logic}, err: "No end of header found"},
+		{name: "Valid svg", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", fmt.Sprintf("%s", validSvgFile.Name()), fmt.Sprintf("%s/valid_svg", dir), logic}, recv: []byte{0, 0}},
+		{name: "Invalid version", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", fmt.Sprintf("%s", invalidVersionFile.Name()), fmt.Sprintf("%s/invalid_version", dir), logic}, err: "Unrecognized version"},
 	}
 
 	for _, tc := range tests {

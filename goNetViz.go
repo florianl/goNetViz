@@ -32,22 +32,27 @@ type data struct {
 	payload []byte // Copied network packet
 }
 
+// logicOp represents the logical operation
+type logicOp struct {
+	name  string                                    // logical operation name
+	gate  func(payload []byte, operand byte) []byte // logical operation on the input bytes
+	value byte                                      // value for the logical operation
+}
+
 // configs represents all the configuration data
 type configs struct {
-	bpP        uint                                      // Bits per Pixel
-	ppI        uint                                      // Number of packets per Image
-	ts         int64                                     // "Duration" for one Image
-	limit      uint                                      // Number of network packets to process
-	stil       uint                                      // Type of illustration
-	scale      uint                                      // Scaling factor for output
-	xlimit     uint                                      // Limit of bytes per packet
-	dev        string                                    // network interface as source of visualization
-	filter     string                                    // filter for the network interface
-	file       string                                    //  file as source of visualization
-	prefix     string                                    // prefix for the visualization results
-	logicOp    string                                    // logical operation name
-	logicGate  func(payload []byte, operand byte) []byte // logical operation on the input bytes
-	logicValue byte                                      // value for the logical operation
+	bpP    uint   // Bits per Pixel
+	ppI    uint   // Number of packets per Image
+	ts     int64  // "Duration" for one Image
+	limit  uint   // Number of network packets to process
+	stil   uint   // Type of illustration
+	scale  uint   // Scaling factor for output
+	xlimit uint   // Limit of bytes per packet
+	dev    string // network interface as source of visualization
+	filter string // filter for the network interface
+	file   string //  file as source of visualization
+	prefix string // prefix for the visualization results
+	logicOp
 }
 
 func getBitsFromPacket(packet []byte, byteP, bitP *int, bpP uint) uint8 {
@@ -154,7 +159,7 @@ func createImage(filename string, width, height int, content string, cfg configs
 		source = cfg.dev
 	}
 	if _, err := f.WriteString(fmt.Sprintf("<!--\n\tgoNetViz \"%s\"\n\tScale=%d\n\tBitsPerPixel=%d\n\tDTG=\"%s\"\n\tSource=\"%s\"\n\tFilter=\"%s\"\n\tLogicGate=\"%s\"\n\tLogicValue=0x%X\n-->\n",
-		Version, cfg.scale, cfg.bpP, time.Now().UTC(), source, cfg.filter, cfg.logicOp, cfg.logicValue)); err != nil {
+		Version, cfg.scale, cfg.bpP, time.Now().UTC(), source, cfg.filter, cfg.logicOp.name, cfg.logicOp.value)); err != nil {
 		f.Close()
 		return fmt.Errorf("Could not write additional information: %s", err.Error())
 	}
@@ -236,8 +241,8 @@ func createVisualization(g *errgroup.Group, content []data, num uint, cfg config
 func handlePackets(g *errgroup.Group, ps *gopacket.PacketSource, cfg configs, ch chan<- data) {
 	var count uint
 	var num = cfg.limit
-	var logicValue = cfg.logicValue
-	var logicGate = cfg.logicGate
+	var logicValue = cfg.logicOp.value
+	var logicGate = cfg.logicOp.gate
 
 	for packet := range ps.Packets() {
 		count++
@@ -359,26 +364,26 @@ func checkConfig(cfg *configs, console, rebuild bool, lGate string, lValue strin
 
 	switch strings.ToLower(lGate) {
 	case "xor":
-		cfg.logicGate = opXor
-		cfg.logicOp = "xor"
+		cfg.logicOp.gate = opXor
+		cfg.logicOp.name = "xor"
 	case "or":
-		cfg.logicGate = opOr
-		cfg.logicOp = "or"
+		cfg.logicOp.gate = opOr
+		cfg.logicOp.name = "or"
 	case "and":
-		cfg.logicGate = opAnd
-		cfg.logicOp = "and"
+		cfg.logicOp.gate = opAnd
+		cfg.logicOp.name = "and"
 	case "not":
-		cfg.logicGate = opNot
-		cfg.logicOp = "not"
+		cfg.logicOp.gate = opNot
+		cfg.logicOp.name = "not"
 	case "nand":
-		cfg.logicGate = opNand
-		cfg.logicOp = "nand"
+		cfg.logicOp.gate = opNand
+		cfg.logicOp.name = "nand"
 	default:
-		cfg.logicGate = opDefault
-		cfg.logicOp = "none"
+		cfg.logicOp.gate = opDefault
+		cfg.logicOp.name = "none"
 	}
 
-	cfg.logicValue, err = getOperand(lValue)
+	cfg.logicOp.value, err = getOperand(lValue)
 	if err != nil {
 		return err
 	}

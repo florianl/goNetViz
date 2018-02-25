@@ -182,6 +182,13 @@ func TestGetBitsFromPacket(t *testing.T) {
 }
 
 func TestCheckConfig(t *testing.T) {
+
+	logic := logicOp{
+		name:  "none",
+		gate:  nil,
+		value: 0,
+	}
+
 	tests := []struct {
 		name    string
 		cfg     configs
@@ -192,25 +199,25 @@ func TestCheckConfig(t *testing.T) {
 		err     string
 	}{
 		// Testing different output stiles
-		{name: "Two Bits per Pixel", cfg: configs{2, 0, 0, 0, terminal, 1, 1500, "dev", "filter", "file", "prefix", "none", nil, 0}, lGate: "xor", lValue: "255", err: "-bits 2 is not divisible by three or one"},
-		{name: "One Bit per Pixel", cfg: configs{1, 0, 0, 0, terminal, 1, 1500, "dev", "filter", "file", "prefix", "none", nil, 0}, lGate: "xor", lValue: "255"},
-		{name: "27 Bits per Pixel", cfg: configs{27, 0, 0, 0, terminal, 1, 1500, "dev", "filter", "file", "prefix", "none", nil, 0}, lGate: "xor", lValue: "255", err: "-bits 27 must be smaller than 25"},
-		{name: "Terminal only", cfg: configs{3, 0, 0, 0, terminal, 1, 1500, "dev", "filter", "file", "prefix", "none", nil, 0}, lGate: "xor", lValue: "255"},
-		{name: "Terminal and Timeslize", cfg: configs{3, 0, 0, 0, (terminal | timeslize), 1, 1500, "dev", "filter", "file", "prefix", "none", nil, 0}, lGate: "xor", lValue: "255", console: true, err: "-timeslize and -terminal can't be combined"},
-		{name: "Fixed Slize", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "dev", "filter", "file", "prefix", "none", nil, 0}, lGate: "xor", lValue: "255"},
-		{name: "Time Slize", cfg: configs{1, 0, 50, 0, 0, 1, 1500, "dev", "filter", "file", "prefix", "none", nil, 0}, lGate: "xor", lValue: "255"},
-		{name: "Scale and Terminal", cfg: configs{1, 0, 0, 0, terminal, 2, 1500, "dev", "filter", "file", "prefix", "none", nil, 0}, lGate: "xor", lValue: "255", console: true, err: "-scale and -terminal can't be combined"},
-		{name: "Time Slize", cfg: configs{1, 0, 50, 0, 0, 0, 1500, "dev", "filter", "file", "prefix", "none", nil, 0}, lGate: "xor", lValue: "255", err: "scale factor has to be at least 1"},
-		{name: "Time Slize, Terminal and Rebuild", cfg: configs{1, 0, 50, 0, 0, 0, 1500, "dev", "filter", "file", "prefix", "none", nil, 0}, lGate: "xor", lValue: "255", console: true, rebuild: true, err: "-terminal, -timeslize and -reverse can't be combined"},
-		{name: "Time Slize and Rebuild", cfg: configs{1, 0, 50, 0, 0, 0, 1500, "dev", "filter", "file", "prefix", "none", nil, 0}, lGate: "xor", lValue: "255", rebuild: true, err: "-timeslize and -reverse can't be combined"},
-		{name: "Terminal and Rebuild", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "dev", "filter", "file", "prefix", "none", nil, 0}, lGate: "xor", lValue: "255", console: true, rebuild: true, err: "-terminal and -reverse can't be combined"},
-		{name: "Rebuild without file", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "dev", "filter", "", "prefix", "none", nil, 0}, lGate: "xor", lValue: "255", console: false, rebuild: true, err: "-file is needed as source"},
-		{name: "Jumbo frame", cfg: configs{1, 0, 0, 0, 0, 1, 15000, "dev", "filter", "file", "prefix", "none", nil, 0}, lGate: "xor", lValue: "255", err: "limit has to be smallerthan a Jumbo frame"},
-		{name: "XOR", cfg: configs{1, 0, 0, 0, terminal, 1, 1500, "dev", "filter", "file", "prefix", "none", nil, 0}, lGate: "xor", lValue: "255"},
-		{name: "AND", cfg: configs{1, 0, 0, 0, terminal, 1, 1500, "dev", "filter", "file", "prefix", "none", nil, 0}, lGate: "and", lValue: "255"},
-		{name: "OR", cfg: configs{1, 0, 0, 0, terminal, 1, 1500, "dev", "filter", "file", "prefix", "none", nil, 0}, lGate: "or", lValue: "255"},
-		{name: "None", cfg: configs{1, 0, 0, 0, terminal, 1, 1500, "dev", "filter", "file", "prefix", "none", nil, 0}, lGate: "none", lValue: "255"},
-		{name: "-1", cfg: configs{1, 0, 0, 0, terminal, 1, 1500, "dev", "filter", "file", "prefix", "none", nil, 0}, lGate: "none", lValue: "-1", err: "-1 is not a valid value"},
+		{name: "Two Bits per Pixel", cfg: configs{2, 0, 0, 0, terminal, 1, 1500, "dev", "filter", "file", "prefix", logic}, lGate: "xor", lValue: "255", err: "-bits 2 is not divisible by three or one"},
+		{name: "One Bit per Pixel", cfg: configs{1, 0, 0, 0, terminal, 1, 1500, "dev", "filter", "file", "prefix", logic}, lGate: "xor", lValue: "255"},
+		{name: "27 Bits per Pixel", cfg: configs{27, 0, 0, 0, terminal, 1, 1500, "dev", "filter", "file", "prefix", logic}, lGate: "xor", lValue: "255", err: "-bits 27 must be smaller than 25"},
+		{name: "Terminal only", cfg: configs{3, 0, 0, 0, terminal, 1, 1500, "dev", "filter", "file", "prefix", logic}, lGate: "xor", lValue: "255"},
+		{name: "Terminal and Timeslize", cfg: configs{3, 0, 0, 0, (terminal | timeslize), 1, 1500, "dev", "filter", "file", "prefix", logic}, lGate: "xor", lValue: "255", console: true, err: "-timeslize and -terminal can't be combined"},
+		{name: "Fixed Slize", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "dev", "filter", "file", "prefix", logic}, lGate: "xor", lValue: "255"},
+		{name: "Time Slize", cfg: configs{1, 0, 50, 0, 0, 1, 1500, "dev", "filter", "file", "prefix", logic}, lGate: "xor", lValue: "255"},
+		{name: "Scale and Terminal", cfg: configs{1, 0, 0, 0, terminal, 2, 1500, "dev", "filter", "file", "prefix", logic}, lGate: "xor", lValue: "255", console: true, err: "-scale and -terminal can't be combined"},
+		{name: "Time Slize", cfg: configs{1, 0, 50, 0, 0, 0, 1500, "dev", "filter", "file", "prefix", logic}, lGate: "xor", lValue: "255", err: "scale factor has to be at least 1"},
+		{name: "Time Slize, Terminal and Rebuild", cfg: configs{1, 0, 50, 0, 0, 0, 1500, "dev", "filter", "file", "prefix", logic}, lGate: "xor", lValue: "255", console: true, rebuild: true, err: "-terminal, -timeslize and -reverse can't be combined"},
+		{name: "Time Slize and Rebuild", cfg: configs{1, 0, 50, 0, 0, 0, 1500, "dev", "filter", "file", "prefix", logic}, lGate: "xor", lValue: "255", rebuild: true, err: "-timeslize and -reverse can't be combined"},
+		{name: "Terminal and Rebuild", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "dev", "filter", "file", "prefix", logic}, lGate: "xor", lValue: "255", console: true, rebuild: true, err: "-terminal and -reverse can't be combined"},
+		{name: "Rebuild without file", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "dev", "filter", "", "prefix", logic}, lGate: "xor", lValue: "255", console: false, rebuild: true, err: "-file is needed as source"},
+		{name: "Jumbo frame", cfg: configs{1, 0, 0, 0, 0, 1, 15000, "dev", "filter", "file", "prefix", logic}, lGate: "xor", lValue: "255", err: "limit has to be smallerthan a Jumbo frame"},
+		{name: "XOR", cfg: configs{1, 0, 0, 0, terminal, 1, 1500, "dev", "filter", "file", "prefix", logic}, lGate: "xor", lValue: "255"},
+		{name: "AND", cfg: configs{1, 0, 0, 0, terminal, 1, 1500, "dev", "filter", "file", "prefix", logic}, lGate: "and", lValue: "255"},
+		{name: "OR", cfg: configs{1, 0, 0, 0, terminal, 1, 1500, "dev", "filter", "file", "prefix", logic}, lGate: "or", lValue: "255"},
+		{name: "None", cfg: configs{1, 0, 0, 0, terminal, 1, 1500, "dev", "filter", "file", "prefix", logic}, lGate: "none", lValue: "255"},
+		{name: "-1", cfg: configs{1, 0, 0, 0, terminal, 1, 1500, "dev", "filter", "file", "prefix", logic}, lGate: "none", lValue: "-1", err: "-1 is not a valid value"},
 	}
 
 	for _, tc := range tests {
@@ -326,6 +333,12 @@ func TestCreateImage(t *testing.T) {
 		t.Fatalf("Could not create temporary directory: %v", err)
 	}
 
+	logic := logicOp{
+		name:  "none",
+		gate:  nil,
+		value: 0,
+	}
+
 	defer os.RemoveAll(dir)
 	tests := []struct {
 		name     string
@@ -335,11 +348,11 @@ func TestCreateImage(t *testing.T) {
 		cfg      configs
 		data     string
 	}{
-		{name: "No Filename", filename: fmt.Sprintf("%s/test.svg", dir), cfg: configs{24, 0, 0, 0, solder, 1, 1500, "dev", "filter", "file", fmt.Sprintf("%s/solid", dir), "none", nil, 0}, data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />"},
-		{name: "Just directory name", filename: dir, cfg: configs{24, 0, 0, 0, solder, 1, 1500, "dev", "filter", "file", fmt.Sprintf("%s/solid", dir), "none", nil, 0}, data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />"},
-		{name: "No Data", filename: fmt.Sprintf("%s/test.svg", dir), cfg: configs{24, 0, 0, 0, solder, 1, 1500, "dev", "filter", "file", fmt.Sprintf("%s/solid", dir), "none", nil, 0}},
-		{name: "Without errors from File", filename: fmt.Sprintf("%s/test.svg", dir), cfg: configs{24, 0, 0, 0, solder, 1, 1500, "", "filter", "file", fmt.Sprintf("%s/solid", dir), "none", nil, 0}, data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />"},
-		{name: "Without errors from Dev", filename: fmt.Sprintf("%s/test.svg", dir), cfg: configs{24, 0, 0, 0, solder, 1, 1500, "dev", "filter", "", fmt.Sprintf("%s/solid", dir), "none", nil, 0}, data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />"},
+		{name: "No Filename", filename: fmt.Sprintf("%s/test.svg", dir), cfg: configs{24, 0, 0, 0, solder, 1, 1500, "dev", "filter", "file", fmt.Sprintf("%s/solid", dir), logic}, data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />"},
+		{name: "Just directory name", filename: dir, cfg: configs{24, 0, 0, 0, solder, 1, 1500, "dev", "filter", "file", fmt.Sprintf("%s/solid", dir), logic}, data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />"},
+		{name: "No Data", filename: fmt.Sprintf("%s/test.svg", dir), cfg: configs{24, 0, 0, 0, solder, 1, 1500, "dev", "filter", "file", fmt.Sprintf("%s/solid", dir), logic}},
+		{name: "Without errors from File", filename: fmt.Sprintf("%s/test.svg", dir), cfg: configs{24, 0, 0, 0, solder, 1, 1500, "", "filter", "file", fmt.Sprintf("%s/solid", dir), logic}, data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />"},
+		{name: "Without errors from Dev", filename: fmt.Sprintf("%s/test.svg", dir), cfg: configs{24, 0, 0, 0, solder, 1, 1500, "dev", "filter", "", fmt.Sprintf("%s/solid", dir), logic}, data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />"},
 	}
 
 	for _, tc := range tests {
@@ -356,6 +369,12 @@ func TestCreateVisualization(t *testing.T) {
 	}
 	defer os.RemoveAll(dir)
 
+	logic := logicOp{
+		name:  "none",
+		gate:  nil,
+		value: 0,
+	}
+
 	tests := []struct {
 		name    string
 		content []data
@@ -365,9 +384,9 @@ func TestCreateVisualization(t *testing.T) {
 		cfg     configs
 		err     string
 	}{
-		{name: "No Data", xLimit: 1, prefix: fmt.Sprintf("%s/noData", dir), num: 1, cfg: configs{1, 0, 0, 0, solder, 1, 1500, "dev", "filter", "file", "prefix", "none", nil, 0}, err: "No image data provided"},
-		{name: "Solid image", content: []data{{toa: 0, payload: []byte{0xCA, 0xFE, 0xBA, 0xBE}}}, xLimit: 1, prefix: fmt.Sprintf("%s/solid", dir), num: 1, cfg: configs{24, 0, 0, 0, solder, 1, 1500, "dev", "filter", "file", fmt.Sprintf("%s/solid", dir), "none", nil, 0}},
-		{name: "Timeslize image", content: []data{{toa: 0, payload: []byte{0xCA, 0xFE, 0xBA, 0xBE}}}, xLimit: 1, prefix: fmt.Sprintf("%s/timeslize", dir), num: 1, cfg: configs{24, 0, 0, 0, timeslize, 1, 1500, "dev", "filter", "file", fmt.Sprintf("%s/timeslize", dir), "none", nil, 0}},
+		{name: "No Data", xLimit: 1, prefix: fmt.Sprintf("%s/noData", dir), num: 1, cfg: configs{1, 0, 0, 0, solder, 1, 1500, "dev", "filter", "file", "prefix", logic}, err: "No image data provided"},
+		{name: "Solid image", content: []data{{toa: 0, payload: []byte{0xCA, 0xFE, 0xBA, 0xBE}}}, xLimit: 1, prefix: fmt.Sprintf("%s/solid", dir), num: 1, cfg: configs{24, 0, 0, 0, solder, 1, 1500, "dev", "filter", "file", fmt.Sprintf("%s/solid", dir), logic}},
+		{name: "Timeslize image", content: []data{{toa: 0, payload: []byte{0xCA, 0xFE, 0xBA, 0xBE}}}, xLimit: 1, prefix: fmt.Sprintf("%s/timeslize", dir), num: 1, cfg: configs{24, 0, 0, 0, timeslize, 1, 1500, "dev", "filter", "file", fmt.Sprintf("%s/timeslize", dir), logic}},
 	}
 
 	for _, tc := range tests {
@@ -379,18 +398,24 @@ func TestCreateVisualization(t *testing.T) {
 }
 
 func TestCreateTerminalVisualization(t *testing.T) {
+
+	logic := logicOp{
+		name:  "none",
+		gate:  nil,
+		value: 0,
+	}
 	tests := []struct {
 		name string
 		pkt1 data
 		pkt2 data
 		cfg  configs
 	}{
-		{name: "bytePos >= pkt1Len", pkt1: data{toa: 0, payload: []byte{0x01}}, pkt2: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, cfg: configs{3, 0, 0, 0, timeslize, 1, 1500, "dev", "filter", "file", "prefix", "none", nil, 0}},
-		{name: "bytePos >= pkt2Len", pkt1: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, pkt2: data{toa: 0, payload: []byte{0x01}}, cfg: configs{3, 0, 0, 0, timeslize, 1, 1500, "dev", "filter", "file", "prefix", "none", nil, 0}},
-		{name: "pkt1Len == pkt2Len", pkt1: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, pkt2: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, cfg: configs{3, 0, 0, 0, timeslize, 1, 1500, "dev", "filter", "file", "prefix", "none", nil, 0}},
-		{name: "pkt1Len == 0", pkt1: data{toa: 0, payload: []byte{}}, pkt2: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, cfg: configs{3, 0, 0, 0, timeslize, 1, 1500, "dev", "filter", "file", "prefix", "none", nil, 0}},
-		{name: "pkt2Len == 0", pkt1: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, pkt2: data{toa: 0, payload: []byte{}}, cfg: configs{3, 0, 0, 0, timeslize, 1, 1500, "dev", "filter", "file", "prefix", "none", nil, 0}},
-		{name: "bytePos > xlimit", pkt1: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, pkt2: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, cfg: configs{24, 0, 0, 2, timeslize, 1, 1500, "dev", "filter", "file", "prefix", "none", nil, 0}},
+		{name: "bytePos >= pkt1Len", pkt1: data{toa: 0, payload: []byte{0x01}}, pkt2: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, cfg: configs{3, 0, 0, 0, timeslize, 1, 1500, "dev", "filter", "file", "prefix", logic}},
+		{name: "bytePos >= pkt2Len", pkt1: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, pkt2: data{toa: 0, payload: []byte{0x01}}, cfg: configs{3, 0, 0, 0, timeslize, 1, 1500, "dev", "filter", "file", "prefix", logic}},
+		{name: "pkt1Len == pkt2Len", pkt1: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, pkt2: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, cfg: configs{3, 0, 0, 0, timeslize, 1, 1500, "dev", "filter", "file", "prefix", logic}},
+		{name: "pkt1Len == 0", pkt1: data{toa: 0, payload: []byte{}}, pkt2: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, cfg: configs{3, 0, 0, 0, timeslize, 1, 1500, "dev", "filter", "file", "prefix", logic}},
+		{name: "pkt2Len == 0", pkt1: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, pkt2: data{toa: 0, payload: []byte{}}, cfg: configs{3, 0, 0, 0, timeslize, 1, 1500, "dev", "filter", "file", "prefix", logic}},
+		{name: "bytePos > xlimit", pkt1: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, pkt2: data{toa: 0, payload: []byte{0xCA, 0xFE, 0xC0, 0x00, 0x10, 0xFF, 0xC0, 0xFF, 0xEE}}, cfg: configs{24, 0, 0, 2, timeslize, 1, 1500, "dev", "filter", "file", "prefix", logic}},
 	}
 
 	for _, tc := range tests {
@@ -447,15 +472,27 @@ func TestVisualize(t *testing.T) {
 		return payload
 	}
 
+	noneLogic := logicOp{
+		name:  "none",
+		gate:  nil,
+		value: 0,
+	}
+
+	pipelineLogic := logicOp{
+		name:  "pipeline",
+		gate:  pipeline,
+		value: 0,
+	}
+
 	tests := []struct {
 		name string
 		cfg  configs
 		err  string
 	}{
-		{name: "solder", cfg: configs{1, 2, 0, 0, solder, 1, 1500, "", "", fmt.Sprintf("%s", fakePcap.Name()), fmt.Sprintf("%s/solder", tdir), "none", pipeline, 0}},
-		{name: "terminal", cfg: configs{24, 0, 0, 0, terminal, 1, 1500, "", "", fmt.Sprintf("%s", fakePcap.Name()), fmt.Sprintf("%s/terminal", tdir), "none", pipeline, 0}},
-		{name: "timeslize", cfg: configs{1, 2, 0, 0, timeslize, 1, 1500, "", "", fmt.Sprintf("%s", fakePcap.Name()), fmt.Sprintf("%s/timeslize", tdir), "none", pipeline, 0}},
-		{name: "No Source", cfg: configs{1, 2, 0, 0, timeslize, 1, 1500, "", "", "", fmt.Sprintf("%s/NoSource", tdir), "none", nil, 0}, err: "Source is missing"},
+		{name: "solder", cfg: configs{1, 2, 0, 0, solder, 1, 1500, "", "", fmt.Sprintf("%s", fakePcap.Name()), fmt.Sprintf("%s/solder", tdir), pipelineLogic}},
+		{name: "terminal", cfg: configs{24, 0, 0, 0, terminal, 1, 1500, "", "", fmt.Sprintf("%s", fakePcap.Name()), fmt.Sprintf("%s/terminal", tdir), pipelineLogic}},
+		{name: "timeslize", cfg: configs{1, 2, 0, 0, timeslize, 1, 1500, "", "", fmt.Sprintf("%s", fakePcap.Name()), fmt.Sprintf("%s/timeslize", tdir), pipelineLogic}},
+		{name: "No Source", cfg: configs{1, 2, 0, 0, timeslize, 1, 1500, "", "", "", fmt.Sprintf("%s/NoSource", tdir), noneLogic}, err: "Source is missing"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
