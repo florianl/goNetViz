@@ -180,14 +180,25 @@ func TestExtractInformation(t *testing.T) {
 		t.Fatalf("Could not close temporary file: %v", err)
 	}
 
-	validSvgFile, err := ioutil.TempFile(dir, "validSvg.svg")
+	validSvgFile003, err := ioutil.TempFile(dir, "validSvg003.svg")
 	if err != nil {
 		t.Fatalf("Could not create temporary file: %v", err)
 	}
-	defer os.Remove(validSvgFile.Name())
+	defer os.Remove(validSvgFile003.Name())
 
-	validSvgFile.WriteString(validSvg003)
-	if err := validSvgFile.Close(); err != nil {
+	validSvgFile003.WriteString(validSvg003)
+	if err := validSvgFile003.Close(); err != nil {
+		t.Fatalf("Could not close temporary file: %v", err)
+	}
+
+	validSvgFile004, err := ioutil.TempFile(dir, "validSvg004.svg")
+	if err != nil {
+		t.Fatalf("Could not create temporary file: %v", err)
+	}
+	defer os.Remove(validSvgFile004.Name())
+
+	validSvgFile004.WriteString(validSvg004)
+	if err := validSvgFile004.Close(); err != nil {
 		t.Fatalf("Could not close temporary file: %v", err)
 	}
 
@@ -217,7 +228,8 @@ func TestExtractInformation(t *testing.T) {
 		{name: "No file", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", "noFile", fmt.Sprintf("%s/noFile", dir), logic}, err: "Could not open file"},
 		{name: "Not a svg", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", fmt.Sprintf("%s", notSvgFile.Name()), fmt.Sprintf("%s/not_a_svg", dir), logic}, err: "No end of header found"},
 		{name: "Without Comment", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", fmt.Sprintf("%s", withoutCommentFile.Name()), fmt.Sprintf("%s/without_comment", dir), logic}, err: "No end of header found"},
-		{name: "Valid svg", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", fmt.Sprintf("%s", validSvgFile.Name()), fmt.Sprintf("%s/valid_svg", dir), logic}, recv: []byte{0, 0}},
+		{name: "Valid003 svg", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", fmt.Sprintf("%s", validSvgFile003.Name()), fmt.Sprintf("%s/valid_003_svg", dir), logic}, recv: []byte{0, 0}},
+		{name: "Valid004 svg", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", fmt.Sprintf("%s", validSvgFile004.Name()), fmt.Sprintf("%s/valid_004_svg", dir), logic}, err: "Can't decode version"},
 		{name: "Invalid version", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "", fmt.Sprintf("%s", invalidVersionFile.Name()), fmt.Sprintf("%s/invalid_version", dir), logic}, err: "Unrecognized version"},
 	}
 

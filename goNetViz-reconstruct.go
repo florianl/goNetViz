@@ -89,7 +89,6 @@ func checkVersion(parse *[]svgOptions, version string) (string, error) {
 		*parse = append(*parse, source)
 		filter := svgOptions{regex: "\\s+Filter=\"(\\w+)\"", reconstructOption: "Filter"}
 		*parse = append(*parse, filter)
-		fallthrough
 	case "0.0.4":
 		lGate := svgOptions{regex: "\\s+LogicGate=\"([a-zA-Z]+)\"", reconstructOption: "LogicGate"}
 		*parse = append(*parse, lGate)
@@ -144,7 +143,7 @@ func checkHeader(svg *bufio.Scanner) (reconstructOptions, error) {
 			if len(matches) == 2 {
 				variant, err = checkVersion(&parseOptions, matches[1])
 				if err != nil {
-					return options, fmt.Errorf("Unrecognized version: %s", matches[1])
+					return options, err
 				}
 			}
 		default:
