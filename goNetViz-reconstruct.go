@@ -94,7 +94,7 @@ func checkVersion(parse *[]svgOptions, version string) (string, error) {
 		*parse = append(*parse, lGate)
 		lValue := svgOptions{regex: "\\s+LogicValue=(0x[0-9A-F]{2})", reconstructOption: "LogicValue"}
 		*parse = append(*parse, lValue)
-		return "", fmt.Errorf("Can't decode version %s at the moment.")
+		return "", fmt.Errorf("Can't decode version 0.0.4 at the moment.")
 	default:
 		return "", fmt.Errorf("Unrecognized version: %s", version)
 	}
