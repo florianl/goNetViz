@@ -24,7 +24,7 @@ const (
 )
 
 // Version number of this tool
-const Version = "0.0.3"
+const Version = "0.0.4"
 
 // Data is a struct for each network packet
 type data struct {
