@@ -82,19 +82,20 @@ func checkVersion(parse *[]svgOptions, version string) (string, error) {
 	*parse = append(*parse, bpP)
 
 	switch version {
-	case "0.0.3":
-		dtg := svgOptions{regex: "\\s+DTG=\"([0-9. :a-zA-Z]+)\"", reconstructOption: "Dtg"}
-		*parse = append(*parse, dtg)
-		source := svgOptions{regex: "\\s+Source=\"(\\w+)\"", reconstructOption: "Source"}
-		*parse = append(*parse, source)
-		filter := svgOptions{regex: "\\s+Filter=\"(\\w+)\"", reconstructOption: "Filter"}
-		*parse = append(*parse, filter)
 	case "0.0.4":
-		lGate := svgOptions{regex: "\\s+LogicGate=\"([a-zA-Z]+)\"", reconstructOption: "LogicGate"}
-		*parse = append(*parse, lGate)
 		lValue := svgOptions{regex: "\\s+LogicValue=(0x[0-9A-F]{2})", reconstructOption: "LogicValue"}
-		*parse = append(*parse, lValue)
+		*parse = append([]svgOptions{lValue}, *parse...)
+		lGate := svgOptions{regex: "\\s+LogicGate=\"([a-zA-Z]+)\"", reconstructOption: "LogicGate"}
+		*parse = append([]svgOptions{lGate}, *parse...)
 		return "", fmt.Errorf("Can't decode version 0.0.4 at the moment.")
+		fallthrough
+	case "0.0.3":
+		filter := svgOptions{regex: "\\s+Filter=\"(\\w+)\"", reconstructOption: "Filter"}
+		*parse = append([]svgOptions{filter}, *parse...)
+		source := svgOptions{regex: "\\s+Source=\"(\\w+)\"", reconstructOption: "Source"}
+		*parse = append([]svgOptions{source}, *parse...)
+		dtg := svgOptions{regex: "\\s+DTG=\"([0-9. :a-zA-Z]+)\"", reconstructOption: "Dtg"}
+		*parse = append([]svgOptions{dtg}, *parse...)
 	default:
 		return "", fmt.Errorf("Unrecognized version: %s", version)
 	}
