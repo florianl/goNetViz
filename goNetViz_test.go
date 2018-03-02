@@ -512,11 +512,17 @@ func TestVisualize(t *testing.T) {
 func TestMain(t *testing.T) {
 	tests := []struct {
 		name string
+		args []string
 	}{
-		{name: "without options"},
+		{name: "without options", args: []string{"cmd"}},
+		//		{name: "help", args: []string{"cmd", "-help"}},
+		//		{name: "version", args: []string{"cmd", "-version"}},
 	}
+	oldArgs := os.Args
+	defer func() { os.Args = oldArgs }()
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			os.Args = tc.args
 			main()
 		})
 	}
