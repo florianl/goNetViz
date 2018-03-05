@@ -515,8 +515,7 @@ func createBytes(slice []int, bitsPerByte int) []byte {
 	return bytes
 }
 
-func main() {
-	var cfg configs
+func run(cfg configs) error {
 	g, ctx := errgroup.WithContext(context.Background())
 	ctx, cancel := context.WithCancel(ctx)
 	osSig := make(chan os.Signal)
@@ -534,6 +533,23 @@ func main() {
 			return
 		}
 	}()
+
+	if cfg.stil&reverse == cfg.stil {
+		if err := reconstruct(g, cfg); err != nil {
+			fmt.Println("Reconstruction error:", err)
+			return err
+		}
+	} else {
+		if err := visualize(g, cfg); err != nil {
+			fmt.Println("Visualizon error:", err)
+			return err
+		}
+	}
+	return nil
+}
+
+func main() {
+	var cfg configs
 
 	dev := flag.String("interface", "", "Choose an interface for online processing.")
 	file := flag.String("file", "", "Choose a file for offline processing.")
@@ -567,7 +583,7 @@ func main() {
 		return
 	}
 
-	if *help {
+	if *help || len(os.Args) <= 1 {
 		fmt.Println(os.Args[0], "[-list_interfaces] [-help] [-version]\n\t[-bits ...] [-count ...] [-limit ...] [-file ... |-interface ...] [-filter ...] [-prefix ...] [-scale ...] [-size ... | -timeslize ... |-terminal|-reverse]")
 		flag.PrintDefaults()
 		return
@@ -590,16 +606,8 @@ func main() {
 		return
 	}
 
-	if cfg.stil&reverse == cfg.stil {
-		if err := reconstruct(g, cfg); err != nil {
-			fmt.Println("Reconstruction error:", err)
-			return
-		}
-	} else {
-		if err := visualize(g, cfg); err != nil {
-			fmt.Println("Visualizon error:", err)
-			return
-		}
+	if err := run(cfg); err != nil {
+		fmt.Println("Configuration error:", err)
+		return
 	}
-
 }
