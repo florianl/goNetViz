@@ -541,9 +541,9 @@ func TestGetOperand(t *testing.T) {
 		{name: "254", val: "254", b: byte(254)},
 		{name: "255", val: "255", b: byte(255)},
 		{name: "256", val: "256", b: byte(0), e: "is not a valid value"},
-		// Hex-formated input is not yet supported
-		{name: "0x00", val: "0x00", b: byte(0), e: "Could not convert"},
-		{name: "a", val: "a", b: byte(0), e: "Could not convert"},
+		{name: "0x00", val: "0x00", b: byte(0)},
+		{name: "a", val: "a", b: byte(10)},
+		{name: "0xFF", val: "0xFF", b: byte(255)},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

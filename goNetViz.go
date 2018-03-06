@@ -307,8 +307,19 @@ func initSource(dev, file, filter string) (handle *pcap.Handle, err error) {
 }
 
 func getOperand(val string) (byte, error) {
+	var i int
+	var j int64
+	var err error
 
-	i, err := strconv.Atoi(val)
+	smallVal := strings.ToLower(val)
+
+	if strings.HasPrefix(smallVal, "0x") || strings.ContainsAny(smallVal, "abcdef") {
+		j, err = strconv.ParseInt(strings.TrimPrefix(strings.ToLower(val), "0x"), 16, 16)
+		i = int(j)
+	} else {
+		i, err = strconv.Atoi(val)
+	}
+
 	if err != nil {
 		return 0x00, fmt.Errorf("Could not convert %s", val)
 	}
@@ -567,7 +578,7 @@ func main() {
 	xlimit := flag.Uint("limit", 1500, "Maximim number of bytes per packet.\n\tIf your MTU is higher than the default value of 1500 you might change this value.")
 	rebuild := flag.Bool("reverse", false, "Create a pcap from a svg")
 	lGate := flag.String("logicGate", "", "Logical operation for the input")
-	lValue := flag.String("logicValue", "255", "Operand for the logical operation")
+	lValue := flag.String("logicValue", "0xFF", "Operand for the logical operation")
 
 	flag.Parse()
 
