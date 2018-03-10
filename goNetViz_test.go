@@ -148,6 +148,7 @@ var (
 )
 
 func TestGetBitsFromPacket(t *testing.T) {
+	t.Parallel()
 
 	var bytePos int
 	var bitPos int
@@ -235,6 +236,8 @@ func TestCheckConfig(t *testing.T) {
 }
 
 func TestCreatePixel(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name   string
 		packet []byte
@@ -426,6 +429,8 @@ func TestCreateTerminalVisualization(t *testing.T) {
 }
 
 func TestCreateBytes(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		slice       []int
@@ -563,6 +568,8 @@ func TestGetOperand(t *testing.T) {
 }
 
 func TestOpXor(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name    string
 		payload []byte
@@ -584,6 +591,8 @@ func TestOpXor(t *testing.T) {
 }
 
 func TestOpOr(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name    string
 		payload []byte
@@ -605,6 +614,8 @@ func TestOpOr(t *testing.T) {
 }
 
 func TestOpAnd(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name    string
 		payload []byte
@@ -626,6 +637,8 @@ func TestOpAnd(t *testing.T) {
 }
 
 func TestOpNot(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name    string
 		payload []byte
@@ -648,6 +661,8 @@ func TestOpNot(t *testing.T) {
 }
 
 func TestOpNand(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name    string
 		payload []byte
@@ -669,6 +684,8 @@ func TestOpNand(t *testing.T) {
 }
 
 func TestOpDefault(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name    string
 		payload []byte
