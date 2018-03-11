@@ -707,6 +707,65 @@ func TestOpDefault(t *testing.T) {
 	}
 }
 
+func TestRun(t *testing.T) {
+
+	logic := logicOp{
+		name:  "none",
+		gate:  nil,
+		value: 0,
+	}
+
+	tdir, ferr := ioutil.TempDir("", "run")
+	if ferr != nil {
+		t.Fatal(ferr)
+	}
+	defer os.RemoveAll(tdir)
+	fakePcap, ferr := ioutil.TempFile(tdir, "fake.pcap")
+	if ferr != nil {
+		t.Fatal(ferr)
+	}
+	defer os.Remove(fakePcap.Name())
+
+	ferr = ioutil.WriteFile(fakePcap.Name(), fakeData, 0644)
+	if ferr != nil {
+		t.Fatal(ferr)
+	}
+	defer fakePcap.Close()
+
+	validSvgFile003, err := ioutil.TempFile(tdir, "validSvg003.svg")
+	if err != nil {
+		t.Fatalf("Could not create temporary file: %v", err)
+	}
+	defer os.Remove(validSvgFile003.Name())
+
+	validSvgFile003.WriteString(validSvg003)
+	if err := validSvgFile003.Close(); err != nil {
+		t.Fatalf("Could not close temporary file: %v", err)
+	}
+
+	tests := []struct {
+		name    string
+		cfg  configs
+		e  string
+	}{
+		{name: "No source", cfg: configs{2, 0, 0, 0, terminal, 1, 1500, "", "filter", "", "prefix", logic}, e: "Source is missing"},
+		{name: "terminal", cfg: configs{2, 0, 0, 0, reverse, 1, 1500, "", "", fmt.Sprintf("%s", fakePcap.Name()), "prefix", logic}},
+		{name: "reverse", cfg: configs{2, 0, 0, 0, reverse, 1, 1500, "", "", fmt.Sprintf("%s", validSvgFile003.Name()), "prefix", logic}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			e := run(tc.cfg)
+			if e != nil {
+				if matched, _ := regexp.MatchString(tc.e, e.Error()); matched == false {
+					t.Fatalf("Error matching regex: %v \t Got: %v", tc.e, e)
+				}
+			} else if len(tc.e) != 0 {
+				t.Fatalf("Expected error, got none")
+			}
+		})
+	}
+}
+
 func BenchmarkLogicOperations(b *testing.B) {
 	var payloads = []struct {
 		name  string
