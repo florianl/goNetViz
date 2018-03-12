@@ -748,9 +748,9 @@ func TestRun(t *testing.T) {
 	}
 
 	tests := []struct {
-		name    string
+		name string
 		cfg  configs
-		e  string
+		e    string
 	}{
 		{name: "No source", cfg: configs{2, 0, 0, 0, terminal, 1, 1500, "", "filter", "", "prefix", logic}, e: "Source is missing"},
 		{name: "terminal", cfg: configs{2, 0, 0, 0, reverse, 1, 1500, "", "", fmt.Sprintf("%s", fakePcap.Name()), "prefix", logic}},
