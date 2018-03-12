@@ -217,6 +217,8 @@ func TestCheckConfig(t *testing.T) {
 		{name: "XOR", cfg: configs{1, 0, 0, 0, terminal, 1, 1500, "dev", "filter", "file", "prefix", logic}, lGate: "xor", lValue: "255"},
 		{name: "AND", cfg: configs{1, 0, 0, 0, terminal, 1, 1500, "dev", "filter", "file", "prefix", logic}, lGate: "and", lValue: "255"},
 		{name: "OR", cfg: configs{1, 0, 0, 0, terminal, 1, 1500, "dev", "filter", "file", "prefix", logic}, lGate: "or", lValue: "255"},
+		{name: "NOT", cfg: configs{1, 0, 0, 0, terminal, 1, 1500, "dev", "filter", "file", "prefix", logic}, lGate: "not", lValue: "255"},
+		{name: "NAND", cfg: configs{1, 0, 0, 0, terminal, 1, 1500, "dev", "filter", "file", "prefix", logic}, lGate: "nand", lValue: "255"},
 		{name: "None", cfg: configs{1, 0, 0, 0, terminal, 1, 1500, "dev", "filter", "file", "prefix", logic}, lGate: "none", lValue: "255"},
 		{name: "-1", cfg: configs{1, 0, 0, 0, terminal, 1, 1500, "dev", "filter", "file", "prefix", logic}, lGate: "none", lValue: "-1", err: "-1 is not a valid value"},
 	}
@@ -549,6 +551,8 @@ func TestGetOperand(t *testing.T) {
 		{name: "0x00", val: "0x00", b: byte(0)},
 		{name: "a", val: "a", b: byte(10)},
 		{name: "0xFF", val: "0xFF", b: byte(255)},
+		{name: "1.1", val: "1.1", b: byte(0), e: "Could not convert"},
+		{name: "1,1", val: "1,1", b: byte(0), e: "Could not convert"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
