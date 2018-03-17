@@ -332,35 +332,35 @@ func getOperand(val string) (byte, error) {
 }
 
 func opXor(payload []byte, operand byte) []byte {
-	for i, _ := range payload {
+	for i := range payload {
 		payload[i] ^= operand
 	}
 	return payload
 }
 
 func opOr(payload []byte, operand byte) []byte {
-	for i, _ := range payload {
+	for i := range payload {
 		payload[i] |= operand
 	}
 	return payload
 }
 
 func opAnd(payload []byte, operand byte) []byte {
-	for i, _ := range payload {
+	for i := range payload {
 		payload[i] &= operand
 	}
 	return payload
 }
 
 func opNot(payload []byte, operand byte) []byte {
-	for i, _ := range payload {
+	for i := range payload {
 		payload[i] = ^(payload[i])
 	}
 	return payload
 }
 
 func opNand(payload []byte, operand byte) []byte {
-	for i, _ := range payload {
+	for i := range payload {
 		payload[i] &^= operand
 	}
 	return payload
