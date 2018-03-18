@@ -311,7 +311,13 @@ func initSource(input, filter string, pcap bool) (handle Source, err error) {
 		f.file, err = os.Open(input)
 		handle = f
 	case mode&os.ModeCharDevice == 0:
-		fallthrough
+		f := new(regularFile)
+		f.file, err = os.Open(input)
+		handle = f
+	case mode & os.ModeSocket == 0:
+		f := new(regularFile)
+		f.file, err = os.Open(input)
+		handle = f
 	default:
 		return nil, fmt.Errorf(fmt.Sprintf("Can not handle %s as source", input))
 	}
