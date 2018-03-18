@@ -5,15 +5,18 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
-	"github.com/google/gopacket/pcap"
-	"golang.org/x/sync/errgroup"
+	/*
+		"github.com/google/gopacket"
+		"github.com/google/gopacket/layers"
+		"github.com/google/gopacket/pcap"
+	*/
 	"os"
 	"os/signal"
 	"strconv"
 	"strings"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -51,8 +54,37 @@ type configs struct {
 	dev    string // network interface as source of visualization
 	filter string // filter for the network interface
 	file   string //  file as source of visualization
+	input  string // source of data
 	prefix string // prefix for the visualization results
 	logicOp
+}
+
+type Source interface {
+	Read(uint) ([]byte, int64, error)
+	Close() error
+}
+
+type regularFile struct {
+	file *os.File
+}
+
+func (f regularFile) Read(limit uint) ([]byte, int64, error) {
+	buf := make([]byte, int(limit))
+	n, err := f.file.Read(buf)
+	if n != int(limit) {
+		return []byte{}, 0, fmt.Errorf("Could only read %d instead of %d bytes", n, limit)
+	}
+	if err != nil {
+		return []byte{}, 0, err
+	}
+
+	return buf, 0, nil
+
+}
+
+func (f regularFile) Close() (err error) {
+	f.file.Close()
+	return err
 }
 
 func getBitsFromPacket(packet []byte, byteP, bitP *int, bpP uint) uint8 {
@@ -238,70 +270,73 @@ func createVisualization(g *errgroup.Group, content []data, num uint, cfg config
 	})
 }
 
-func handlePackets(g *errgroup.Group, ps *gopacket.PacketSource, cfg configs, ch chan<- data) {
+func handlePackets(g *errgroup.Group, input Source, cfg configs, ch chan<- data) {
 	var count uint
 	var num = cfg.limit
+	var limit = cfg.xlimit
 	var logicValue = cfg.logicOp.value
 	var logicGate = cfg.logicOp.gate
 
-	for packet := range ps.Packets() {
+	defer close(ch)
+
+	for {
+		bytes, toa, err := input.Read(limit)
+		if err != nil {
+
+		}
 		count++
 		if num != 0 && count > num {
 			break
 		}
 
-		elements := packet.Data()
-		if len(elements) == 0 {
+		if len(bytes) == 0 {
 			continue
 		}
 
-		ch <- data{toa: (packet.Metadata().CaptureInfo.Timestamp.UnixNano() / int64(time.Microsecond)), payload: logicGate(packet.Data(), logicValue)}
+		ch <- data{toa: toa, payload: logicGate(bytes, logicValue)}
 	}
-	close(ch)
 	return
 }
 
-func availableInterfaces() error {
-	devices, err := pcap.FindAllDevs()
+func initSource(input, filter string, pcap bool) (handle Source, err error) {
+
+	fi, err := os.Lstat(input)
 	if err != nil {
-		return fmt.Errorf("%s", err)
+		return nil, fmt.Errorf("Could not get file information")
 	}
 
-	for _, device := range devices {
-		if len(device.Addresses) == 0 {
-			continue
-		}
-		fmt.Println("Interface: ", device.Name)
-		for _, address := range device.Addresses {
-			fmt.Println("   IP address:  ", address.IP)
-			fmt.Println("   Subnet mask: ", address.Netmask)
-		}
-		fmt.Println("")
+	switch mode := fi.Mode(); {
+	case mode.IsRegular():
+		f := new(regularFile)
+		f.file, err = os.Open(input)
+		handle = f
+	case mode&os.ModeCharDevice == 0:
+		fallthrough
+	default:
+		return nil, fmt.Errorf(fmt.Sprintf("Can not handle %s as source", input))
 	}
-	return nil
-}
+	/*
+		if len(dev) > 0 {
+			handle, err = pcap.OpenLive(dev, 4096, true, -10*time.Microsecond)
+			if err != nil {
+				return nil, fmt.Errorf("%s", err)
+			}
+		} else if len(file) > 0 {
+			handle, err = pcap.OpenOffline(file)
+			if err != nil {
+				return nil, fmt.Errorf("%s", err)
+			}
+		} else {
+			return nil, fmt.Errorf("Source is missing\n")
+		}
 
-func initSource(dev, file, filter string) (handle *pcap.Handle, err error) {
-	if len(dev) > 0 {
-		handle, err = pcap.OpenLive(dev, 4096, true, -10*time.Microsecond)
-		if err != nil {
-			return nil, fmt.Errorf("%s", err)
+		if len(filter) != 0 {
+			err = handle.SetBPFFilter(filter)
+			if err != nil {
+				return nil, fmt.Errorf("%s\nInvalid Filter: %s", err, filter)
+			}
 		}
-	} else if len(file) > 0 {
-		handle, err = pcap.OpenOffline(file)
-		if err != nil {
-			return nil, fmt.Errorf("%s", err)
-		}
-	} else {
-		return nil, fmt.Errorf("Source is missing\n")
-	}
-
-	if len(filter) != 0 {
-		err = handle.SetBPFFilter(filter)
-		if err != nil {
-			return nil, fmt.Errorf("%s\nInvalid Filter: %s", err, filter)
-		}
-	}
+	*/
 
 	return
 }
@@ -455,16 +490,17 @@ func visualize(g *errgroup.Group, cfg configs) error {
 	var index uint = 1
 	var slicer int64
 
-	handle, err := initSource(cfg.dev, cfg.file, cfg.filter)
+	handle, err := initSource(cfg.input, cfg.filter, false)
 	if err != nil {
 		return err
 	}
 	defer handle.Close()
 
-	packetSource := gopacket.NewPacketSource(handle, layers.LayerTypeEthernet)
-	packetSource.DecodeOptions = gopacket.Lazy
-
-	go handlePackets(g, packetSource, cfg, ch)
+	/*
+		packetSource := gopacket.NewPacketSource(handle, layers.LayerTypeEthernet)
+		packetSource.DecodeOptions = gopacket.Lazy
+	*/
+	go handlePackets(g, handle, cfg, ch)
 
 	switch cfg.stil {
 	case solder:
@@ -562,10 +598,9 @@ func run(cfg configs) error {
 func main() {
 	var cfg configs
 
-	dev := flag.String("interface", "", "Choose an interface for online processing.")
-	file := flag.String("file", "", "Choose a file for offline processing.")
+	input := flag.String("input", "", "Choose a source for further processing.")
+	//pcap := flag.Bool("pcap", false, "Try to open input with pcap.")
 	filter := flag.String("filter", "", "Set a specific filter.")
-	lst := flag.Bool("list_interfaces", false, "List available interfaces.")
 	vers := flag.Bool("version", false, "Show version.")
 	help := flag.Bool("help", false, "Show this help.")
 	terminalOut := flag.Bool("terminal", false, "Visualize output on terminal.")
@@ -582,13 +617,6 @@ func main() {
 
 	flag.Parse()
 
-	if *lst {
-		if err := availableInterfaces(); err != nil {
-			fmt.Println("Could not list interfaces:", err)
-		}
-		return
-	}
-
 	if *vers {
 		fmt.Println("Version:", Version)
 		return
@@ -600,6 +628,7 @@ func main() {
 		return
 	}
 
+	cfg.input = *input
 	cfg.bpP = *bits
 	cfg.ppI = *size
 	cfg.ts = int64(*ts)
@@ -607,10 +636,9 @@ func main() {
 	cfg.stil = 0
 	cfg.scale = *scale
 	cfg.xlimit = *xlimit
-	cfg.dev = *dev
-	cfg.file = *file
 	cfg.filter = *filter
 	cfg.prefix = *prefix
+	//cfg.pcap = *pcap
 
 	if err := checkConfig(&cfg, *terminalOut, *rebuild, *lGate, *lValue); err != nil {
 		fmt.Println("Configuration error:", err)
