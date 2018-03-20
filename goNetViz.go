@@ -5,16 +5,16 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	/*
-		"github.com/google/gopacket"
-		"github.com/google/gopacket/layers"
-		"github.com/google/gopacket/pcap"
-	*/
+	"net"
 	"os"
 	"os/signal"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
+	"github.com/google/gopacket/pcap"
 
 	"golang.org/x/sync/errgroup"
 )
@@ -84,6 +84,27 @@ func (f regularFile) Read(limit uint) ([]byte, int64, error) {
 
 func (f regularFile) Close() (err error) {
 	f.file.Close()
+	return err
+}
+
+type pcapInput struct {
+	handle *pcap.Handle
+	source *gopacket.PacketSource
+}
+
+func (p pcapInput) Read(limit uint) ([]byte, int64, error) {
+	buf := make([]byte, int(limit))
+	packet, err := p.source.NextPacket()
+	if err != nil {
+		return []byte{}, 0, err
+	}
+	toa := packet.Metadata().CaptureInfo.Timestamp.UnixNano() / int64(time.Microsecond)
+	copy(buf, packet.Data())
+	return buf, toa, nil
+}
+
+func (p pcapInput) Close() (err error) {
+	p.handle.Close()
 	return err
 }
 
@@ -298,14 +319,48 @@ func handlePackets(g *errgroup.Group, input Source, cfg configs, ch chan<- data)
 	return
 }
 
+func initPcapSource(input, filter string) (Source, error) {
+	var p pcapInput
+	var err error
+
+	if _, err := net.InterfaceByName(input); err == nil {
+		p.handle, err = pcap.OpenLive(input, 4096, true, -10*time.Microsecond)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		p.handle, err = pcap.OpenOffline(input)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if len(filter) != 0 {
+		err = p.handle.SetBPFFilter(filter)
+		if err != nil {
+			return nil, fmt.Errorf("%s\nInvalid Filter: %s", err, filter)
+		}
+	}
+
+	p.source = gopacket.NewPacketSource(p.handle, layers.LayerTypeEthernet)
+	p.source.DecodeOptions = gopacket.Lazy
+
+	return p, nil
+}
+
 func initSource(input, filter string, pcap bool) (handle Source, err error) {
+
+	if len(filter) > 0 || pcap == true {
+		return initPcapSource(input, filter)
+	}
 
 	fi, err := os.Lstat(input)
 	if err != nil {
 		return nil, fmt.Errorf("Could not get file information")
 	}
+	mode := fi.Mode()
 
-	switch mode := fi.Mode(); {
+	switch {
 	case mode.IsRegular():
 		f := new(regularFile)
 		f.file, err = os.Open(input)
@@ -314,36 +369,13 @@ func initSource(input, filter string, pcap bool) (handle Source, err error) {
 		f := new(regularFile)
 		f.file, err = os.Open(input)
 		handle = f
-	case mode & os.ModeSocket == 0:
+	case mode&os.ModeSocket == 0:
 		f := new(regularFile)
 		f.file, err = os.Open(input)
 		handle = f
 	default:
 		return nil, fmt.Errorf(fmt.Sprintf("Can not handle %s as source", input))
 	}
-	/*
-		if len(dev) > 0 {
-			handle, err = pcap.OpenLive(dev, 4096, true, -10*time.Microsecond)
-			if err != nil {
-				return nil, fmt.Errorf("%s", err)
-			}
-		} else if len(file) > 0 {
-			handle, err = pcap.OpenOffline(file)
-			if err != nil {
-				return nil, fmt.Errorf("%s", err)
-			}
-		} else {
-			return nil, fmt.Errorf("Source is missing\n")
-		}
-
-		if len(filter) != 0 {
-			err = handle.SetBPFFilter(filter)
-			if err != nil {
-				return nil, fmt.Errorf("%s\nInvalid Filter: %s", err, filter)
-			}
-		}
-	*/
-
 	return
 }
 
