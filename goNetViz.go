@@ -319,11 +319,11 @@ func handlePackets(g *errgroup.Group, input Source, cfg configs, ch chan<- data)
 	return
 }
 
-func initPcapSource(input, filter string) (Source, error) {
+func initPcapSource(input, filter string, device bool) (Source, error) {
 	var p pcapInput
 	var err error
 
-	if _, err := net.InterfaceByName(input); err == nil {
+	if device {
 		p.handle, err = pcap.OpenLive(input, 4096, true, -10*time.Microsecond)
 		if err != nil {
 			return nil, err
@@ -349,9 +349,18 @@ func initPcapSource(input, filter string) (Source, error) {
 }
 
 func initSource(input, filter string, pcap bool) (handle Source, err error) {
+	var device bool
+
+	if _, err := net.InterfaceByName(input); err == nil {
+		device = true
+	}
 
 	if len(filter) > 0 || pcap == true {
-		return initPcapSource(input, filter)
+		return initPcapSource(input, filter, device)
+	}
+
+	if device {
+		return nil, fmt.Errorf("Please open networking interface with pcap support")
 	}
 
 	fi, err := os.Lstat(input)
