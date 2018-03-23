@@ -630,12 +630,10 @@ func run(cfg configs) error {
 
 	if cfg.stil&reverse == cfg.stil {
 		if err := reconstruct(g, cfg); err != nil {
-			fmt.Println("Reconstruction error:", err)
 			return err
 		}
 	} else {
 		if err := visualize(g, cfg); err != nil {
-			fmt.Println("Visualizon error:", err)
 			return err
 		}
 	}
@@ -693,7 +691,7 @@ func main() {
 	}
 
 	if err := run(cfg); err != nil {
-		fmt.Println("Configuration error:", err)
+		fmt.Println("goNetViz:", err)
 		return
 	}
 }
