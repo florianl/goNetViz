@@ -20,10 +20,15 @@ import (
 )
 
 const (
-	solder    = 0x01
-	terminal  = 0x02
-	timeslize = 0x04
-	reverse   = 0x08
+	solder     = 0x01
+	terminal   = 0x02
+	timeslize  = 0x04
+	reverse    = 0x08
+	stilMask   = 0x0f
+	file       = 0x10
+	dev        = 0x20
+	usePcap    = 0x40
+	sourceMask = 0x70
 )
 
 // Version number of this tool
@@ -48,12 +53,10 @@ type configs struct {
 	ppI    uint   // Number of packets per Image
 	ts     int64  // "Duration" for one Image
 	limit  uint   // Number of network packets to process
-	stil   uint   // Type of illustration
+	flags  uint   // Type of illustration
 	scale  uint   // Scaling factor for output
 	xlimit uint   // Limit of bytes per packet
-	dev    string // network interface as source of visualization
 	filter string // filter for the network interface
-	file   string //  file as source of visualization
 	input  string // source of data
 	prefix string // prefix for the visualization results
 	logicOp
@@ -205,12 +208,8 @@ func createImage(filename string, width, height int, content string, cfg configs
 		return fmt.Errorf("Could not write header: %s", err.Error())
 	}
 
-	var source string
-	if len(cfg.file) > 0 {
-		source = cfg.file
-	} else {
-		source = cfg.dev
-	}
+	var source = cfg.input
+
 	if _, err := f.WriteString(fmt.Sprintf("<!--\n\tgoNetViz \"%s\"\n\tScale=%d\n\tBitsPerPixel=%d\n\tDTG=\"%s\"\n\tSource=\"%s\"\n\tFilter=\"%s\"\n\tLogicGate=\"%s\"\n\tLogicValue=0x%X\n-->\n",
 		Version, cfg.scale, cfg.bpP, time.Now().UTC(), source, cfg.filter, cfg.logicOp.name, cfg.logicOp.value)); err != nil {
 		f.Close()
@@ -253,7 +252,7 @@ func createVisualization(g *errgroup.Group, content []data, num uint, cfg config
 		}
 		packetLen = len(content[pkg].payload)
 		xPos = 0
-		if cfg.stil == solder {
+		if (cfg.flags & stilMask) == solder {
 			yPos += 1
 		} else {
 			current := time.Unix(0, content[pkg].toa*int64(time.Microsecond))
@@ -279,7 +278,7 @@ func createVisualization(g *errgroup.Group, content []data, num uint, cfg config
 
 	filename := prefix
 	filename += "-"
-	if cfg.stil == timeslize {
+	if (cfg.flags & stilMask) == timeslize {
 		filename += firstPkg.Format(time.RFC3339Nano)
 	} else {
 		filename += fmt.Sprint(num)
@@ -482,11 +481,11 @@ func checkConfig(cfg *configs, console, rebuild bool, lGate string, lValue strin
 	}
 
 	if console {
-		cfg.stil |= terminal
+		cfg.flags |= terminal
 	}
 
 	if rebuild {
-		cfg.stil |= reverse
+		cfg.flags |= reverse
 	}
 
 	if cfg.bpP%3 != 0 && cfg.bpP != 1 {
@@ -496,10 +495,10 @@ func checkConfig(cfg *configs, console, rebuild bool, lGate string, lValue strin
 	}
 
 	if cfg.ts > 0 {
-		cfg.stil |= timeslize
+		cfg.flags |= timeslize
 	}
 
-	switch cfg.stil {
+	switch stil := (cfg.flags & stilMask); stil {
 	case (timeslize | terminal):
 		return fmt.Errorf("-timeslize and -terminal can't be combined")
 	case (timeslize | reverse):
@@ -509,14 +508,14 @@ func checkConfig(cfg *configs, console, rebuild bool, lGate string, lValue strin
 	case (terminal | timeslize | reverse):
 		return fmt.Errorf("-terminal, -timeslize and -reverse can't be combined")
 	case 0: /*	no specific option was given	*/
-		cfg.stil |= solder
+		cfg.flags |= solder
 	}
 
-	if cfg.stil == reverse && len(cfg.file) == 0 {
+	if (cfg.flags&stilMask) == reverse && (cfg.flags&sourceMask) != file {
 		return fmt.Errorf("-file is needed as source")
 	}
 
-	if cfg.stil == terminal && cfg.scale != 1 {
+	if (cfg.flags&stilMask) == terminal && cfg.scale != 1 {
 		return fmt.Errorf("-scale and -terminal can't be combined")
 	}
 
@@ -536,8 +535,14 @@ func visualize(g *errgroup.Group, cfg configs) error {
 	var content []data
 	var index uint = 1
 	var slicer int64
+	var err error
+	var handle Source
 
-	handle, err := initSource(cfg.input, cfg.filter, false)
+	if (cfg.flags & sourceMask) == usePcap {
+		handle, err = initSource(cfg.input, cfg.filter, true)
+	} else {
+		handle, err = initSource(cfg.input, cfg.filter, false)
+	}
 	if err != nil {
 		return err
 	}
@@ -549,7 +554,7 @@ func visualize(g *errgroup.Group, cfg configs) error {
 	*/
 	go handlePackets(g, handle, cfg, ch)
 
-	switch cfg.stil {
+	switch stil := (cfg.flags & stilMask); stil {
 	case solder:
 		for i, ok := <-ch; ok; i, ok = <-ch {
 			content = append(content, i)
@@ -628,7 +633,7 @@ func run(cfg configs) error {
 		}
 	}()
 
-	if cfg.stil&reverse == cfg.stil {
+	if (cfg.flags & stilMask) == reverse {
 		if err := reconstruct(g, cfg); err != nil {
 			return err
 		}
@@ -644,7 +649,7 @@ func main() {
 	var cfg configs
 
 	input := flag.String("input", "", "Choose a source for further processing.")
-	//pcap := flag.Bool("pcap", false, "Try to open input with pcap.")
+	pcap := flag.Bool("pcap", false, "Try to open input with pcap.")
 	filter := flag.String("filter", "", "Set a specific filter.")
 	vers := flag.Bool("version", false, "Show version.")
 	help := flag.Bool("help", false, "Show this help.")
@@ -678,12 +683,15 @@ func main() {
 	cfg.ppI = *size
 	cfg.ts = int64(*ts)
 	cfg.limit = *num
-	cfg.stil = 0
+	cfg.flags = 0
 	cfg.scale = *scale
 	cfg.xlimit = *xlimit
 	cfg.filter = *filter
 	cfg.prefix = *prefix
-	//cfg.pcap = *pcap
+
+	if *pcap {
+		cfg.flags |= usePcap
+	}
 
 	if err := checkConfig(&cfg, *terminalOut, *rebuild, *lGate, *lValue); err != nil {
 		fmt.Println("Configuration error:", err)

@@ -182,7 +182,7 @@ func checkHeader(svg *bufio.Scanner) (reconstructOptions, error) {
 func extractInformation(g *errgroup.Group, ch chan []byte, cfg configs) error {
 	inputfile, err := os.Open(cfg.input)
 	if err != nil {
-		return fmt.Errorf("Could not open file %s: %s\n", cfg.file, err.Error())
+		return fmt.Errorf("Could not open file %s: %s\n", cfg.input, err.Error())
 	}
 	defer inputfile.Close()
 	svg := bufio.NewScanner(inputfile)
