@@ -62,7 +62,7 @@ type configs struct {
 	logicOp
 }
 
-type Source interface {
+type source interface {
 	Read(uint) ([]byte, int64, error)
 	Close() error
 }
@@ -118,10 +118,10 @@ func getBitsFromPacket(packet []byte, byteP, bitP *int, bpP uint) uint8 {
 			break
 		}
 		c |= (packet[*byteP] & (1 << uint8(7-*bitP)))
-		*bitP += 1
+		*bitP++
 		if *bitP%8 == 0 {
 			*bitP = 0
-			*byteP += 1
+			*byteP++
 		}
 	}
 	return c
@@ -136,10 +136,10 @@ func createPixel(packet []byte, byteP, bitP *int, bpP uint) (uint8, uint8, uint8
 		} else {
 			r, g, b = uint8(255), uint8(255), uint8(255)
 		}
-		*bitP += 1
+		*bitP++
 		if *bitP%8 == 0 {
 			*bitP = 0
-			*byteP += 1
+			*byteP++
 		}
 	} else {
 		r = getBitsFromPacket(packet, byteP, bitP, bpP)
@@ -234,16 +234,16 @@ func createImage(filename string, width, height int, content string, cfg configs
 
 func createVisualization(g *errgroup.Group, content []data, num uint, cfg configs) {
 	var xPos int
-	var yPos int = -1
+	var yPos = -1
 	var bitPos int
 	var bytePos int
 	var packetLen int
 	var firstPkg time.Time
 	var svg bytes.Buffer
-	var bitsPerPixel int = int(cfg.bpP)
-	var scale int = int(cfg.scale)
-	var xLimit uint = cfg.xlimit
-	var prefix string = cfg.prefix
+	var bitsPerPixel = int(cfg.bpP)
+	var scale = int(cfg.scale)
+	var xLimit = cfg.xlimit
+	var prefix = cfg.prefix
 	var xMax int
 
 	for pkg := range content {
@@ -253,7 +253,7 @@ func createVisualization(g *errgroup.Group, content []data, num uint, cfg config
 		packetLen = len(content[pkg].payload)
 		xPos = 0
 		if (cfg.flags & stilMask) == solder {
-			yPos += 1
+			yPos++
 		} else {
 			current := time.Unix(0, content[pkg].toa*int64(time.Microsecond))
 			yPos = int(current.Sub(firstPkg))
@@ -290,7 +290,7 @@ func createVisualization(g *errgroup.Group, content []data, num uint, cfg config
 	})
 }
 
-func handlePackets(g *errgroup.Group, input Source, cfg configs, ch chan<- data) {
+func handlePackets(g *errgroup.Group, input source, cfg configs, ch chan<- data) {
 	var count uint
 	var num = cfg.limit
 	var limit = cfg.xlimit
@@ -318,7 +318,7 @@ func handlePackets(g *errgroup.Group, input Source, cfg configs, ch chan<- data)
 	return
 }
 
-func initPcapSource(input, filter string, device bool) (Source, error) {
+func initPcapSource(input, filter string, device bool) (source, error) {
 	var p pcapInput
 	var err error
 
@@ -347,7 +347,7 @@ func initPcapSource(input, filter string, device bool) (Source, error) {
 	return p, nil
 }
 
-func initSource(input, filter string, pcap bool) (handle Source, err error) {
+func initSource(input, filter string, pcap bool) (handle source, err error) {
 	var device bool
 
 	if _, err := net.InterfaceByName(input); err == nil {
@@ -413,35 +413,35 @@ func getOperand(val string) (byte, error) {
 }
 
 func opXor(payload []byte, operand byte) []byte {
-	for i, _ := range payload {
+	for i := range payload {
 		payload[i] ^= operand
 	}
 	return payload
 }
 
 func opOr(payload []byte, operand byte) []byte {
-	for i, _ := range payload {
+	for i := range payload {
 		payload[i] |= operand
 	}
 	return payload
 }
 
 func opAnd(payload []byte, operand byte) []byte {
-	for i, _ := range payload {
+	for i := range payload {
 		payload[i] &= operand
 	}
 	return payload
 }
 
 func opNot(payload []byte, operand byte) []byte {
-	for i, _ := range payload {
+	for i := range payload {
 		payload[i] = ^(payload[i])
 	}
 	return payload
 }
 
 func opNand(payload []byte, operand byte) []byte {
-	for i, _ := range payload {
+	for i := range payload {
 		payload[i] &^= operand
 	}
 	return payload
@@ -536,7 +536,7 @@ func visualize(g *errgroup.Group, cfg configs) error {
 	var index uint = 1
 	var slicer int64
 	var err error
-	var handle Source
+	var handle source
 
 	if (cfg.flags & sourceMask) == usePcap {
 		handle, err = initSource(cfg.input, cfg.filter, true)
@@ -548,10 +548,6 @@ func visualize(g *errgroup.Group, cfg configs) error {
 	}
 	defer handle.Close()
 
-	/*
-		packetSource := gopacket.NewPacketSource(handle, layers.LayerTypeEthernet)
-		packetSource.DecodeOptions = gopacket.Lazy
-	*/
 	go handlePackets(g, handle, cfg, ch)
 
 	switch stil := (cfg.flags & stilMask); stil {

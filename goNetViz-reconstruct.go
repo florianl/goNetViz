@@ -88,7 +88,6 @@ func checkVersion(parse *[]svgOptions, version string) (string, error) {
 		lGate := svgOptions{regex: "\\s+LogicGate=\"([a-zA-Z]+)\"", reconstructOption: "LogicGate"}
 		*parse = append([]svgOptions{lGate}, *parse...)
 		return "", fmt.Errorf("Can't decode version 0.0.4 at the moment.")
-		fallthrough
 	case "0.0.3":
 		filter := svgOptions{regex: "\\s+Filter=\"(\\w+)\"", reconstructOption: "Filter"}
 		*parse = append([]svgOptions{filter}, *parse...)
@@ -105,7 +104,7 @@ func checkVersion(parse *[]svgOptions, version string) (string, error) {
 func checkHeader(svg *bufio.Scanner) (reconstructOptions, error) {
 	var options reconstructOptions
 	var variant string
-	var header bool = false
+	var header = false
 	var parseOptions []svgOptions
 	var optionIndex int
 
@@ -168,7 +167,7 @@ func checkHeader(svg *bufio.Scanner) (reconstructOptions, error) {
 				default:
 					return options, fmt.Errorf("Unhandeld option type")
 				}
-				optionIndex += 1
+				optionIndex++
 			} else {
 				if headerEnd.MatchString(line) {
 					return options, nil
