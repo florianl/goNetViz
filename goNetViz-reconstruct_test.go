@@ -41,7 +41,7 @@ func TestReconstruct(t *testing.T) {
 		cfg  configs
 		err  string
 	}{
-		{name: "solder", cfg: configs{1, 2, 0, 0, solder, 1, 1500, "",  fmt.Sprintf("%s", fakePcap.Name()), fmt.Sprintf("%s/solder", tdir), logic}},
+		{name: "solder", cfg: configs{1, 2, 0, 0, solder, 1, 1500, "", fmt.Sprintf("%s", fakePcap.Name()), fmt.Sprintf("%s/solder", tdir), logic}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

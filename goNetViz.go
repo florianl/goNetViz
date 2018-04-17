@@ -63,7 +63,7 @@ type configs struct {
 }
 
 type source interface {
-	Read(uint) ([]byte, int64, error)
+	Read(uint) ([]byte, int64, int, error)
 	Close() error
 }
 
@@ -71,17 +71,14 @@ type regularFile struct {
 	file *os.File
 }
 
-func (f regularFile) Read(limit uint) ([]byte, int64, error) {
+func (f regularFile) Read(limit uint) ([]byte, int64, int, error) {
 	buf := make([]byte, int(limit))
 	n, err := f.file.Read(buf)
-	if n != int(limit) {
-		return []byte{}, 0, fmt.Errorf("Could only read %d instead of %d bytes", n, limit)
-	}
 	if err != nil {
-		return []byte{}, 0, err
+		return []byte{}, 0, 0, err
 	}
 
-	return buf, 0, nil
+	return buf, 0, n, nil
 
 }
 
@@ -95,15 +92,15 @@ type pcapInput struct {
 	source *gopacket.PacketSource
 }
 
-func (p pcapInput) Read(limit uint) ([]byte, int64, error) {
+func (p pcapInput) Read(limit uint) ([]byte, int64, int, error) {
 	buf := make([]byte, int(limit))
 	packet, err := p.source.NextPacket()
 	if err != nil {
-		return []byte{}, 0, err
+		return []byte{}, 0, 0, err
 	}
 	toa := packet.Metadata().CaptureInfo.Timestamp.UnixNano() / int64(time.Microsecond)
 	copy(buf, packet.Data())
-	return buf, toa, nil
+	return buf, toa, len(packet.Data()), nil
 }
 
 func (p pcapInput) Close() (err error) {
@@ -300,9 +297,9 @@ func handlePackets(g *errgroup.Group, input source, cfg configs, ch chan<- data)
 	defer close(ch)
 
 	for {
-		bytes, toa, err := input.Read(limit)
+		bytes, toa, _, err := input.Read(limit)
 		if err != nil {
-
+			break
 		}
 		count++
 		if num != 0 && count > num {

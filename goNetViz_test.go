@@ -215,9 +215,9 @@ func TestCheckConfig(t *testing.T) {
 		{name: "Rebuild without file", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "filter", "", "prefix", logic}, lGate: "xor", lValue: "255", console: false, rebuild: true, err: "-file is needed as source"},
 		{name: "Jumbo frame", cfg: configs{1, 0, 0, 0, 0, 1, 15000, "filter", "input", "prefix", logic}, lGate: "xor", lValue: "255", err: "limit has to be smallerthan a Jumbo frame"},
 		{name: "XOR", cfg: configs{1, 0, 0, 0, terminal, 1, 1500, "filter", "input", "prefix", logic}, lGate: "xor", lValue: "255"},
-		{name: "AND", cfg: configs{1, 0, 0, 0, terminal, 1, 1500,"filter", "input", "prefix", logic}, lGate: "and", lValue: "255"},
-		{name: "OR", cfg: configs{1, 0, 0, 0, terminal, 1, 1500,  "filter", "input", "prefix", logic}, lGate: "or", lValue: "255"},
-		{name: "NOT", cfg: configs{1, 0, 0, 0, terminal, 1, 1500,  "filter", "input", "prefix", logic}, lGate: "not", lValue: "255"},
+		{name: "AND", cfg: configs{1, 0, 0, 0, terminal, 1, 1500, "filter", "input", "prefix", logic}, lGate: "and", lValue: "255"},
+		{name: "OR", cfg: configs{1, 0, 0, 0, terminal, 1, 1500, "filter", "input", "prefix", logic}, lGate: "or", lValue: "255"},
+		{name: "NOT", cfg: configs{1, 0, 0, 0, terminal, 1, 1500, "filter", "input", "prefix", logic}, lGate: "not", lValue: "255"},
 		{name: "NAND", cfg: configs{1, 0, 0, 0, terminal, 1, 1500, "filter", "input", "prefix", logic}, lGate: "nand", lValue: "255"},
 		{name: "None", cfg: configs{1, 0, 0, 0, terminal, 1, 1500, "filter", "input", "prefix", logic}, lGate: "none", lValue: "255"},
 		{name: "-1", cfg: configs{1, 0, 0, 0, terminal, 1, 1500, "filter", "input", "prefix", logic}, lGate: "none", lValue: "-1", err: "-1 is not a valid value"},
@@ -286,33 +286,29 @@ func TestInitSource(t *testing.T) {
 	}
 	defer fakePcap.Close()
 
-	emptyPcap, ferr := ioutil.TempFile(tdir, "empty.pcap")
+	unknownFormat, ferr := ioutil.TempFile(tdir, "unknownFormat.pcap")
 	if ferr != nil {
 		t.Fatal(ferr)
 	}
-	defer os.Remove(emptyPcap.Name())
-	ferr = ioutil.WriteFile(emptyPcap.Name(), pcapHeader, 0644)
+	defer os.Remove(unknownFormat.Name())
+	ferr = ioutil.WriteFile(unknownFormat.Name(), []byte(notSvg), 0644)
 	if ferr != nil {
 		t.Fatal(ferr)
 	}
-	ferr = ioutil.WriteFile(emptyPcap.Name(), fakePacket, 0644)
-	if ferr != nil {
-		t.Fatal(ferr)
-	}
-	defer emptyPcap.Close()
+	defer unknownFormat.Close()
 
 	tests := []struct {
 		name   string
-		input    string
+		input  string
 		filter string
-		pcap    bool
+		pcap   bool
 		err    string
 	}{
 		{name: "No Source", input: "", pcap: false, err: "(Source is missing)|(Could not get file information)"},
 		{name: "Invalid File", input: "/invalid/file", pcap: false, err: "(No such file or directory)|(Could not get file information)"},
 		{name: "Non existing Device", input: "/dev/InvalidDevice", pcap: true, err: "(No such file or directory)|(No such device exists)|(Operation not permitted)"},
 		{name: "Invalid Filter", input: fmt.Sprintf("%s", fakePcap.Name()), pcap: false, filter: "noFilter", err: "syntax error"},
-		{name: "Unknown file format", input: fmt.Sprintf("%s", emptyPcap.Name()),pcap: false, err: "unknown file format"},
+		{name: "Unknown file format", input: fmt.Sprintf("%s", unknownFormat.Name()), pcap: true, err: "unknown file format"},
 		{name: "No Errors", input: fmt.Sprintf("%s", fakePcap.Name())},
 	}
 
@@ -356,7 +352,7 @@ func TestCreateImage(t *testing.T) {
 		{name: "No Filename", filename: fmt.Sprintf("%s/test.svg", dir), cfg: configs{24, 0, 0, 0, solder, 1, 1500, "filter", "input", fmt.Sprintf("%s/solid", dir), logic}, data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />"},
 		{name: "Just directory name", filename: dir, cfg: configs{24, 0, 0, 0, solder, 1, 1500, "filter", "input", fmt.Sprintf("%s/solid", dir), logic}, data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />"},
 		{name: "No Data", filename: fmt.Sprintf("%s/test.svg", dir), cfg: configs{24, 0, 0, 0, solder, 1, 1500, "filter", "input", fmt.Sprintf("%s/solid", dir), logic}},
-		{name: "Without errors from File", filename: fmt.Sprintf("%s/test.svg", dir), cfg: configs{24, 0, 0, 0, solder, 1, 1500,  "filter", "input", fmt.Sprintf("%s/solid", dir), logic}, data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />"},
+		{name: "Without errors from File", filename: fmt.Sprintf("%s/test.svg", dir), cfg: configs{24, 0, 0, 0, solder, 1, 1500, "filter", "input", fmt.Sprintf("%s/solid", dir), logic}, data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />"},
 		{name: "Without errors from Dev", filename: fmt.Sprintf("%s/test.svg", dir), cfg: configs{24, 0, 0, 0, solder, 1, 1500, "filter", "", fmt.Sprintf("%s/solid", dir), logic}, data: "<rect x=\"0\" y=\"0\" width=\"1\" height=\"1\" style=\"fill:rgb(0,0,0)\" />"},
 	}
 
@@ -754,7 +750,7 @@ func TestRun(t *testing.T) {
 	}{
 		{name: "No source", cfg: configs{2, 0, 0, 0, terminal, 1, 1500, "filter", "", "prefix", logic}, e: "No such file or directory"},
 		{name: "terminal", cfg: configs{2, 0, 0, 0, reverse, 1, 1500, "", fmt.Sprintf("%s", fakePcap.Name()), "prefix", logic}},
-		{name: "reverse", cfg: configs{2, 0, 0, 0, reverse, 1, 1500,  "", fmt.Sprintf("%s", validSvgFile003.Name()), "prefix", logic}},
+		{name: "reverse", cfg: configs{2, 0, 0, 0, reverse, 1, 1500, "", fmt.Sprintf("%s", validSvgFile003.Name()), "prefix", logic}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
