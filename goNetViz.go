@@ -607,7 +607,7 @@ func createBytes(slice []int, bitsPerByte int) []byte {
 	return bytes
 }
 
-func run(cfg configs) {
+func run(cfg configs) error {
 	g, ctx := errgroup.WithContext(context.Background())
 	ctx, cancel := context.WithCancel(ctx)
 	osSig := make(chan os.Signal)
@@ -628,13 +628,15 @@ func run(cfg configs) {
 
 	if (cfg.flags & stilMask) == reverse {
 		if err := reconstruct(g, cfg); err != nil {
-			return
+			return err
 		}
 	} else {
 		if err := visualize(g, cfg); err != nil {
-			return
+			return err
 		}
 	}
+
+	return nil
 }
 
 func main() {
