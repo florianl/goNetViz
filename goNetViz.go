@@ -5,22 +5,30 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
-	"github.com/google/gopacket/pcap"
-	"golang.org/x/sync/errgroup"
+	"net"
 	"os"
 	"os/signal"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
+	"github.com/google/gopacket/pcap"
+
+	"golang.org/x/sync/errgroup"
 )
 
 const (
-	solder    = 0x01
-	terminal  = 0x02
-	timeslize = 0x04
-	reverse   = 0x08
+	solder     = 0x01
+	terminal   = 0x02
+	timeslize  = 0x04
+	reverse    = 0x08
+	stilMask   = 0x0f
+	file       = 0x10
+	dev        = 0x20
+	usePcap    = 0x40
+	sourceMask = 0x70
 )
 
 // Version number of this tool
@@ -45,14 +53,59 @@ type configs struct {
 	ppI    uint   // Number of packets per Image
 	ts     int64  // "Duration" for one Image
 	limit  uint   // Number of network packets to process
-	stil   uint   // Type of illustration
+	flags  uint   // Type of illustration
 	scale  uint   // Scaling factor for output
 	xlimit uint   // Limit of bytes per packet
-	dev    string // network interface as source of visualization
 	filter string // filter for the network interface
-	file   string //  file as source of visualization
+	input  string // source of data
 	prefix string // prefix for the visualization results
 	logicOp
+}
+
+type source interface {
+	Read(uint) ([]byte, int64, int, error)
+	Close() error
+}
+
+type regularFile struct {
+	file *os.File
+}
+
+func (f regularFile) Read(limit uint) ([]byte, int64, int, error) {
+	buf := make([]byte, int(limit))
+	n, err := f.file.Read(buf)
+	if err != nil {
+		return []byte{}, 0, 0, err
+	}
+
+	return buf, 0, n, nil
+
+}
+
+func (f regularFile) Close() (err error) {
+	f.file.Close()
+	return err
+}
+
+type pcapInput struct {
+	handle *pcap.Handle
+	source *gopacket.PacketSource
+}
+
+func (p pcapInput) Read(limit uint) ([]byte, int64, int, error) {
+	buf := make([]byte, int(limit))
+	packet, err := p.source.NextPacket()
+	if err != nil {
+		return []byte{}, 0, 0, err
+	}
+	toa := packet.Metadata().CaptureInfo.Timestamp.UnixNano() / int64(time.Microsecond)
+	copy(buf, packet.Data())
+	return buf, toa, len(packet.Data()), nil
+}
+
+func (p pcapInput) Close() (err error) {
+	p.handle.Close()
+	return err
 }
 
 func getBitsFromPacket(packet []byte, byteP, bitP *int, bpP uint) uint8 {
@@ -62,10 +115,10 @@ func getBitsFromPacket(packet []byte, byteP, bitP *int, bpP uint) uint8 {
 			break
 		}
 		c |= (packet[*byteP] & (1 << uint8(7-*bitP)))
-		*bitP += 1
+		*bitP++
 		if *bitP%8 == 0 {
 			*bitP = 0
-			*byteP += 1
+			*byteP++
 		}
 	}
 	return c
@@ -80,10 +133,10 @@ func createPixel(packet []byte, byteP, bitP *int, bpP uint) (uint8, uint8, uint8
 		} else {
 			r, g, b = uint8(255), uint8(255), uint8(255)
 		}
-		*bitP += 1
+		*bitP++
 		if *bitP%8 == 0 {
 			*bitP = 0
-			*byteP += 1
+			*byteP++
 		}
 	} else {
 		r = getBitsFromPacket(packet, byteP, bitP, bpP)
@@ -152,12 +205,8 @@ func createImage(filename string, width, height int, content string, cfg configs
 		return fmt.Errorf("Could not write header: %s", err.Error())
 	}
 
-	var source string
-	if len(cfg.file) > 0 {
-		source = cfg.file
-	} else {
-		source = cfg.dev
-	}
+	var source = cfg.input
+
 	if _, err := f.WriteString(fmt.Sprintf("<!--\n\tgoNetViz \"%s\"\n\tScale=%d\n\tBitsPerPixel=%d\n\tDTG=\"%s\"\n\tSource=\"%s\"\n\tFilter=\"%s\"\n\tLogicGate=\"%s\"\n\tLogicValue=0x%X\n-->\n",
 		Version, cfg.scale, cfg.bpP, time.Now().UTC(), source, cfg.filter, cfg.logicOp.name, cfg.logicOp.value)); err != nil {
 		f.Close()
@@ -182,16 +231,16 @@ func createImage(filename string, width, height int, content string, cfg configs
 
 func createVisualization(g *errgroup.Group, content []data, num uint, cfg configs) {
 	var xPos int
-	var yPos int = -1
+	var yPos = -1
 	var bitPos int
 	var bytePos int
 	var packetLen int
 	var firstPkg time.Time
 	var svg bytes.Buffer
-	var bitsPerPixel int = int(cfg.bpP)
-	var scale int = int(cfg.scale)
-	var xLimit uint = cfg.xlimit
-	var prefix string = cfg.prefix
+	var bitsPerPixel = int(cfg.bpP)
+	var scale = int(cfg.scale)
+	var xLimit = cfg.xlimit
+	var prefix = cfg.prefix
 	var xMax int
 
 	for pkg := range content {
@@ -200,8 +249,8 @@ func createVisualization(g *errgroup.Group, content []data, num uint, cfg config
 		}
 		packetLen = len(content[pkg].payload)
 		xPos = 0
-		if cfg.stil == solder {
-			yPos += 1
+		if (cfg.flags & stilMask) == solder {
+			yPos++
 		} else {
 			current := time.Unix(0, content[pkg].toa*int64(time.Microsecond))
 			yPos = int(current.Sub(firstPkg))
@@ -226,7 +275,7 @@ func createVisualization(g *errgroup.Group, content []data, num uint, cfg config
 
 	filename := prefix
 	filename += "-"
-	if cfg.stil == timeslize {
+	if (cfg.flags & stilMask) == timeslize {
 		filename += firstPkg.Format(time.RFC3339Nano)
 	} else {
 		filename += fmt.Sprint(num)
@@ -238,71 +287,100 @@ func createVisualization(g *errgroup.Group, content []data, num uint, cfg config
 	})
 }
 
-func handlePackets(g *errgroup.Group, ps *gopacket.PacketSource, cfg configs, ch chan<- data) {
+func handlePackets(g *errgroup.Group, input source, cfg configs, ch chan<- data) {
 	var count uint
 	var num = cfg.limit
+	var limit = cfg.xlimit
 	var logicValue = cfg.logicOp.value
 	var logicGate = cfg.logicOp.gate
 
-	for packet := range ps.Packets() {
+	defer close(ch)
+
+	for {
+		bytes, toa, _, err := input.Read(limit)
+		if err != nil {
+			break
+		}
 		count++
 		if num != 0 && count > num {
 			break
 		}
 
-		elements := packet.Data()
-		if len(elements) == 0 {
+		if len(bytes) == 0 {
 			continue
 		}
 
-		ch <- data{toa: (packet.Metadata().CaptureInfo.Timestamp.UnixNano() / int64(time.Microsecond)), payload: logicGate(packet.Data(), logicValue)}
+		ch <- data{toa: toa, payload: logicGate(bytes, logicValue)}
 	}
-	close(ch)
 	return
 }
 
-func availableInterfaces() error {
-	devices, err := pcap.FindAllDevs()
-	if err != nil {
-		return fmt.Errorf("%s", err)
-	}
+func initPcapSource(input, filter string, device bool) (source, error) {
+	var p pcapInput
+	var err error
 
-	for _, device := range devices {
-		if len(device.Addresses) == 0 {
-			continue
-		}
-		fmt.Println("Interface: ", device.Name)
-		for _, address := range device.Addresses {
-			fmt.Println("   IP address:  ", address.IP)
-			fmt.Println("   Subnet mask: ", address.Netmask)
-		}
-		fmt.Println("")
-	}
-	return nil
-}
-
-func initSource(dev, file, filter string) (handle *pcap.Handle, err error) {
-	if len(dev) > 0 {
-		handle, err = pcap.OpenLive(dev, 4096, true, -10*time.Microsecond)
+	if device {
+		p.handle, err = pcap.OpenLive(input, 4096, true, -10*time.Microsecond)
 		if err != nil {
-			return nil, fmt.Errorf("%s", err)
-		}
-	} else if len(file) > 0 {
-		handle, err = pcap.OpenOffline(file)
-		if err != nil {
-			return nil, fmt.Errorf("%s", err)
+			return nil, err
 		}
 	} else {
-		return nil, fmt.Errorf("Source is missing\n")
+		p.handle, err = pcap.OpenOffline(input)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if len(filter) != 0 {
-		err = handle.SetBPFFilter(filter)
+		err = p.handle.SetBPFFilter(filter)
 		if err != nil {
 			return nil, fmt.Errorf("%s\nInvalid Filter: %s", err, filter)
 		}
 	}
 
+	p.source = gopacket.NewPacketSource(p.handle, layers.LayerTypeEthernet)
+	p.source.DecodeOptions = gopacket.Lazy
+
+	return p, nil
+}
+
+func initSource(input, filter string, pcap bool) (handle source, err error) {
+	var device bool
+
+	if _, err := net.InterfaceByName(input); err == nil {
+		device = true
+	}
+
+	if len(filter) > 0 || pcap == true {
+		return initPcapSource(input, filter, device)
+	}
+
+	if device {
+		return nil, fmt.Errorf("Please open networking interface with pcap support")
+	}
+
+	fi, err := os.Lstat(input)
+	if err != nil {
+		return nil, fmt.Errorf("Could not get file information")
+	}
+	mode := fi.Mode()
+
+	switch {
+	case mode.IsRegular():
+		f := new(regularFile)
+		f.file, err = os.Open(input)
+		handle = f
+	case mode&os.ModeCharDevice == 0:
+		f := new(regularFile)
+		f.file, err = os.Open(input)
+		handle = f
+	case mode&os.ModeSocket == 0:
+		f := new(regularFile)
+		f.file, err = os.Open(input)
+		handle = f
+	default:
+		return nil, fmt.Errorf(fmt.Sprintf("Can not handle %s as source", input))
+	}
 	return
 }
 
@@ -400,11 +478,11 @@ func checkConfig(cfg *configs, console, rebuild bool, lGate string, lValue strin
 	}
 
 	if console {
-		cfg.stil |= terminal
+		cfg.flags |= terminal
 	}
 
 	if rebuild {
-		cfg.stil |= reverse
+		cfg.flags |= reverse
 	}
 
 	if cfg.bpP%3 != 0 && cfg.bpP != 1 {
@@ -414,10 +492,10 @@ func checkConfig(cfg *configs, console, rebuild bool, lGate string, lValue strin
 	}
 
 	if cfg.ts > 0 {
-		cfg.stil |= timeslize
+		cfg.flags |= timeslize
 	}
 
-	switch cfg.stil {
+	switch stil := (cfg.flags & stilMask); stil {
 	case (timeslize | terminal):
 		return fmt.Errorf("-timeslize and -terminal can't be combined")
 	case (timeslize | reverse):
@@ -427,14 +505,14 @@ func checkConfig(cfg *configs, console, rebuild bool, lGate string, lValue strin
 	case (terminal | timeslize | reverse):
 		return fmt.Errorf("-terminal, -timeslize and -reverse can't be combined")
 	case 0: /*	no specific option was given	*/
-		cfg.stil |= solder
+		cfg.flags |= solder
 	}
 
-	if cfg.stil == reverse && len(cfg.file) == 0 {
+	if (cfg.flags&stilMask) == reverse && (cfg.flags&sourceMask) != file {
 		return fmt.Errorf("-file is needed as source")
 	}
 
-	if cfg.stil == terminal && cfg.scale != 1 {
+	if (cfg.flags&stilMask) == terminal && cfg.scale != 1 {
 		return fmt.Errorf("-scale and -terminal can't be combined")
 	}
 
@@ -454,19 +532,22 @@ func visualize(g *errgroup.Group, cfg configs) error {
 	var content []data
 	var index uint = 1
 	var slicer int64
+	var err error
+	var handle source
 
-	handle, err := initSource(cfg.dev, cfg.file, cfg.filter)
+	if (cfg.flags & sourceMask) == usePcap {
+		handle, err = initSource(cfg.input, cfg.filter, true)
+	} else {
+		handle, err = initSource(cfg.input, cfg.filter, false)
+	}
 	if err != nil {
 		return err
 	}
 	defer handle.Close()
 
-	packetSource := gopacket.NewPacketSource(handle, layers.LayerTypeEthernet)
-	packetSource.DecodeOptions = gopacket.Lazy
+	go handlePackets(g, handle, cfg, ch)
 
-	go handlePackets(g, packetSource, cfg, ch)
-
-	switch cfg.stil {
+	switch stil := (cfg.flags & stilMask); stil {
 	case solder:
 		for i, ok := <-ch; ok; i, ok = <-ch {
 			content = append(content, i)
@@ -545,14 +626,12 @@ func run(cfg configs) {
 		}
 	}()
 
-	if cfg.stil&reverse == cfg.stil {
+	if (cfg.flags & stilMask) == reverse {
 		if err := reconstruct(g, cfg); err != nil {
-			fmt.Println("Reconstruction error:", err)
 			return
 		}
 	} else {
 		if err := visualize(g, cfg); err != nil {
-			fmt.Println("Visualizon error:", err)
 			return
 		}
 	}
@@ -561,10 +640,9 @@ func run(cfg configs) {
 func main() {
 	var cfg configs
 
-	dev := flag.String("interface", "", "Choose an interface for online processing.")
-	file := flag.String("file", "", "Choose a file for offline processing.")
+	input := flag.String("input", "", "Choose a source for further processing.")
+	pcap := flag.Bool("pcap", false, "Try to open input with pcap.")
 	filter := flag.String("filter", "", "Set a specific filter.")
-	lst := flag.Bool("list_interfaces", false, "List available interfaces.")
 	vers := flag.Bool("version", false, "Show version.")
 	help := flag.Bool("help", false, "Show this help.")
 	terminalOut := flag.Bool("terminal", false, "Visualize output on terminal.")
@@ -581,13 +659,6 @@ func main() {
 
 	flag.Parse()
 
-	if *lst {
-		if err := availableInterfaces(); err != nil {
-			fmt.Println("Could not list interfaces:", err)
-		}
-		return
-	}
-
 	if *vers {
 		fmt.Println("Version:", Version)
 		return
@@ -599,17 +670,20 @@ func main() {
 		return
 	}
 
+	cfg.input = *input
 	cfg.bpP = *bits
 	cfg.ppI = *size
 	cfg.ts = int64(*ts)
 	cfg.limit = *num
-	cfg.stil = 0
+	cfg.flags = 0
 	cfg.scale = *scale
 	cfg.xlimit = *xlimit
-	cfg.dev = *dev
-	cfg.file = *file
 	cfg.filter = *filter
 	cfg.prefix = *prefix
+
+	if *pcap {
+		cfg.flags |= usePcap
+	}
 
 	if err := checkConfig(&cfg, *terminalOut, *rebuild, *lGate, *lValue); err != nil {
 		fmt.Println("Configuration error:", err)
