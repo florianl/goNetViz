@@ -37,6 +37,7 @@ const Version = "0.0.4"
 // Data is a struct for each network packet
 type data struct {
 	toa     int64  // Timestamp of arrival in microseconds
+	len     int    // Length of packet
 	payload []byte // Copied network packet
 }
 
@@ -155,8 +156,8 @@ func createTerminalVisualization(pkt1, pkt2 data, cfg configs) {
 	var r2, g2, b2 uint8
 	var bitsPerPixel = uint(cfg.bpP)
 
-	pkt1Len = len(pkt1.payload)
-	pkt2Len = len(pkt2.payload)
+	pkt1Len = pkt1.len
+	pkt2Len = pkt2.len
 
 	if pkt1Len == 0 {
 		pkt1Len = -1
@@ -297,7 +298,7 @@ func handlePackets(g *errgroup.Group, input source, cfg configs, ch chan<- data)
 	defer close(ch)
 
 	for {
-		bytes, toa, _, err := input.Read(limit)
+		bytes, toa, plen, err := input.Read(limit)
 		if err != nil {
 			break
 		}
@@ -310,7 +311,7 @@ func handlePackets(g *errgroup.Group, input source, cfg configs, ch chan<- data)
 			continue
 		}
 
-		ch <- data{toa: toa, payload: logicGate(bytes, logicValue)}
+		ch <- data{len: plen, toa: toa, payload: logicGate(bytes, logicValue)}
 	}
 	return
 }
@@ -562,7 +563,7 @@ func visualize(g *errgroup.Group, cfg configs) error {
 			var j data
 			j, ok = <-ch
 			if !ok {
-				createTerminalVisualization(i, data{toa: 0, payload: nil}, cfg)
+				createTerminalVisualization(i, data{len: 0, toa: 0, payload: nil}, cfg)
 				break
 			} else {
 				createTerminalVisualization(i, j, cfg)
