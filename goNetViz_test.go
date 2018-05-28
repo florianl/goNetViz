@@ -297,6 +297,12 @@ func TestInitSource(t *testing.T) {
 	}
 	defer unknownFormat.Close()
 
+	testdir, ferr := ioutil.TempDir(tdir, "TestDir")
+	if ferr != nil {
+		t.Fatal(ferr)
+	}
+	defer os.RemoveAll(testdir)
+
 	tests := []struct {
 		name   string
 		input  string
@@ -310,6 +316,7 @@ func TestInitSource(t *testing.T) {
 		{name: "Invalid Filter", input: fmt.Sprintf("%s", fakePcap.Name()), pcap: false, filter: "noFilter", err: "syntax error"},
 		{name: "Unknown file format", input: fmt.Sprintf("%s", unknownFormat.Name()), pcap: true, err: "unknown file format"},
 		{name: "No Errors", input: fmt.Sprintf("%s", fakePcap.Name())},
+		{name: "Folder As Input", input: testdir, err: "Can not handle"},
 	}
 
 	for _, tc := range tests {
@@ -318,7 +325,10 @@ func TestInitSource(t *testing.T) {
 			if err != nil {
 				if matched, _ := regexp.MatchString(tc.err, err.Error()); matched == false {
 					t.Fatalf("Error matching regex: %v \t Got: %v", tc.err, err)
+				} else {
+					return
 				}
+				t.Fatalf("Expected no error, got: %v", err)
 			} else if len(tc.err) != 0 {
 				t.Fatalf("Expected error, got none")
 			}
