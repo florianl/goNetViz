@@ -229,7 +229,10 @@ func TestCheckConfig(t *testing.T) {
 			if err != nil {
 				if matched, _ := regexp.MatchString(tc.err, err.Error()); matched == false {
 					t.Fatalf("Error matching regex: %v \t Got: %v", tc.err, err)
+				} else {
+					return
 				}
+				t.Fatalf("Expected no error, got: %v", err)
 			} else if len(tc.err) != 0 {
 				t.Fatalf("Expected error, got none")
 			}
@@ -514,7 +517,10 @@ func TestVisualize(t *testing.T) {
 			if err != nil {
 				if matched, _ := regexp.MatchString(tc.err, err.Error()); matched == false {
 					t.Fatalf("Error matching regex: %v \t Got: %v", tc.err, err)
+				} else {
+					return
 				}
+				t.Fatalf("Expected no error, got: %v", err)
 			} else if len(tc.err) != 0 {
 				t.Fatalf("Expected error, got none")
 			}
@@ -566,7 +572,10 @@ func TestGetOperand(t *testing.T) {
 			if e != nil {
 				if matched, _ := regexp.MatchString(tc.e, e.Error()); matched == false {
 					t.Fatalf("Error matching regex: %v \t Got: %v", tc.e, e)
+				} else {
+					return
 				}
+				t.Fatalf("Expected no error, got: %v", e)
 			} else if len(tc.e) != 0 {
 				t.Fatalf("Expected error, got none")
 			}
@@ -768,7 +777,10 @@ func TestRun(t *testing.T) {
 			if e != nil {
 				if matched, _ := regexp.MatchString(tc.e, e.Error()); matched == false {
 					t.Fatalf("Error matching regex: %v \t Got: %v", tc.e, e)
+				} else {
+					return
 				}
+				t.Fatalf("Expected no error, got: %v", err)
 			} else if len(tc.e) != 0 {
 				t.Fatalf("Expected error, got none")
 			}
