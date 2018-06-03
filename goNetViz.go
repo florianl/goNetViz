@@ -95,7 +95,8 @@ type pcapInput struct {
 
 func (p pcapInput) Read(limit uint) ([]byte, int64, int, error) {
 	buf := make([]byte, int(limit))
-	packet, err := p.source.NextPacket()
+	src := p.source
+	packet, err := src.NextPacket()
 	if err != nil {
 		return []byte{}, 0, 0, err
 	}
@@ -339,8 +340,10 @@ func initPcapSource(input, filter string, device bool) (source, error) {
 		}
 	}
 
-	p.source = gopacket.NewPacketSource(p.handle, layers.LayerTypeEthernet)
-	p.source.DecodeOptions = gopacket.Lazy
+	src := gopacket.NewPacketSource(p.handle, layers.LayerTypeEthernet)
+	src.DecodeOptions = gopacket.Lazy
+
+	p.source = src
 
 	return p, nil
 }
