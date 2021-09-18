@@ -3,14 +3,15 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
-	"github.com/google/gopacket/pcapgo"
-	"golang.org/x/sync/errgroup"
 	"os"
 	"reflect"
 	"regexp"
 	"strconv"
+
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
+	"github.com/google/gopacket/pcapgo"
+	"golang.org/x/sync/errgroup"
 )
 
 // reconstructOptions represents all options for reconstruction
@@ -66,7 +67,7 @@ func createPacket(ch chan<- []byte, packet []int, bpP int) error {
 			buf = append(buf, byte(tmp))
 		}
 	default:
-		return fmt.Errorf("This format is not supported so far")
+		return fmt.Errorf("this format is not supported so far")
 	}
 
 	ch <- buf
@@ -87,7 +88,7 @@ func checkVersion(parse *[]svgOptions, version string) (string, error) {
 		*parse = append([]svgOptions{lValue}, *parse...)
 		lGate := svgOptions{regex: "\\s+LogicGate=\"([a-zA-Z]+)\"", reconstructOption: "LogicGate"}
 		*parse = append([]svgOptions{lGate}, *parse...)
-		return "", fmt.Errorf("Can't decode version 0.0.4 at the moment.")
+		return "", fmt.Errorf("can't decode version 0.0.4 at the moment")
 	case "0.0.3":
 		filter := svgOptions{regex: "\\s+Filter=\"(\\w+)\"", reconstructOption: "Filter"}
 		*parse = append([]svgOptions{filter}, *parse...)
@@ -96,7 +97,7 @@ func checkVersion(parse *[]svgOptions, version string) (string, error) {
 		dtg := svgOptions{regex: "\\s+DTG=\"([0-9. :a-zA-Z]+)\"", reconstructOption: "Dtg"}
 		*parse = append([]svgOptions{dtg}, *parse...)
 	default:
-		return "", fmt.Errorf("Unrecognized version: %s", version)
+		return "", fmt.Errorf("unrecognized version: %s", version)
 	}
 	return version, nil
 }
@@ -128,13 +129,13 @@ func checkHeader(svg *bufio.Scanner) (reconstructOptions, error) {
 	for svg.Scan() {
 		line := svg.Text()
 		switch {
-		case options.LimitX == 0 && options.LimitY == 0 && header == false:
+		case options.LimitX == 0 && options.LimitY == 0 && !header:
 			matches := limits.FindStringSubmatch(line)
 			if len(matches) == 3 {
 				options.LimitX, _ = strconv.Atoi(matches[1])
 				options.LimitY, _ = strconv.Atoi(matches[2])
 			}
-		case header == false:
+		case !header:
 			if headerStart.MatchString(line) {
 				header = true
 			}
@@ -148,7 +149,7 @@ func checkHeader(svg *bufio.Scanner) (reconstructOptions, error) {
 			}
 		default:
 			if optionIndex > len(parseOptions) {
-				return options, fmt.Errorf("Option index is out of range")
+				return options, fmt.Errorf("option index is out of range")
 			}
 			regex, err := regexp.Compile(parseOptions[optionIndex].regex)
 			if err != nil {
@@ -165,7 +166,7 @@ func checkHeader(svg *bufio.Scanner) (reconstructOptions, error) {
 				case reflect.String:
 					option.SetString(matches[1])
 				default:
-					return options, fmt.Errorf("Unhandeld option type")
+					return options, fmt.Errorf("unhandeld option type")
 				}
 				optionIndex++
 			} else {
@@ -175,13 +176,13 @@ func checkHeader(svg *bufio.Scanner) (reconstructOptions, error) {
 			}
 		}
 	}
-	return options, fmt.Errorf("No end of header found")
+	return options, fmt.Errorf("no end of header found")
 }
 
 func extractInformation(g *errgroup.Group, ch chan []byte, cfg configs) error {
 	inputfile, err := os.Open(cfg.input)
 	if err != nil {
-		return fmt.Errorf("Could not open file %s: %s\n", cfg.input, err.Error())
+		return fmt.Errorf("could not open file %s: %s", cfg.input, err.Error())
 	}
 	defer inputfile.Close()
 	svg := bufio.NewScanner(inputfile)
@@ -217,7 +218,7 @@ func extractInformation(g *errgroup.Group, ch chan []byte, cfg configs) error {
 				packet = packet[:0]
 			}
 			if pixelX >= opt.LimitX {
-				return fmt.Errorf("x-coordinate (%d) is bigger than the limit (%d)\n", pixelX, opt.LimitX)
+				return fmt.Errorf("x-coordinate (%d) is bigger than the limit (%d)", pixelX, opt.LimitX)
 			}
 			r, _ := strconv.Atoi(matches[3])
 			g, _ := strconv.Atoi(matches[4])
@@ -237,7 +238,7 @@ func createPcap(g *errgroup.Group, ch chan []byte, cfg configs) error {
 	filename += ".pcap"
 	output, err := os.Create(filename)
 	if err != nil {
-		return fmt.Errorf("Could not create file %s: %s\n", filename, err.Error())
+		return fmt.Errorf("could not create file %s: %s", filename, err.Error())
 	}
 	defer output.Close()
 	w := pcapgo.NewWriter(output)

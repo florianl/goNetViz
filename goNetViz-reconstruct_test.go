@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"golang.org/x/sync/errgroup"
 	"io/ioutil"
 	"os"
 	"regexp"
 	"sync"
 	"testing"
+
+	"golang.org/x/sync/errgroup"
 )
 
 func TestReconstruct(t *testing.T) {
@@ -41,7 +42,7 @@ func TestReconstruct(t *testing.T) {
 		cfg  configs
 		err  string
 	}{
-		{name: "solder", cfg: configs{1, 2, 0, 0, solder, 1, 1500, "", fmt.Sprintf("%s", fakePcap.Name()), fmt.Sprintf("%s/solder", tdir), logic}},
+		{name: "solder", cfg: configs{1, 2, 0, 0, solder, 1, 1500, "", fakePcap.Name(), fmt.Sprintf("%s/solder", tdir), logic}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -122,7 +123,7 @@ func TestCreatePacket(t *testing.T) {
 		{name: "24 BitsPerPixel", recv: []byte{8, 16, 32, 64, 128}, packet: []int{8, 16, 32, 64, 128}, bpP: 24},
 		{name: "12 BitPerPixel", recv: []byte{1, 2, 5, 13, 18, 57, 153}, packet: []int{0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233}, bpP: 12},
 		{name: "3 BitPerPixel", recv: []byte{5, 49, 14}, packet: []int{0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 144, 89, 55, 34, 21, 13, 8, 5, 3, 2, 1, 1, 0}, bpP: 3},
-		{name: "2 BitsPerPixel", recv: []byte{}, packet: []int{8, 16, 32, 64, 128}, bpP: 2, err: "This format is not supported so far"},
+		{name: "2 BitsPerPixel", recv: []byte{}, packet: []int{8, 16, 32, 64, 128}, bpP: 2, err: "this format is not supported so far"},
 		{name: "1 BitPerPixel", recv: []byte{1, 8}, packet: []int{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0}, bpP: 1},
 	}
 
@@ -134,10 +135,8 @@ func TestCreatePacket(t *testing.T) {
 			var recv []byte
 			go func() {
 				defer wg.Done()
-				select {
-				case v, _ := <-ch:
-					recv = append(recv, v...)
-				}
+				v := <-ch
+				recv = append(recv, v...)
 				close(ch)
 			}()
 			err := createPacket(ch, tc.packet, tc.bpP)
@@ -153,7 +152,7 @@ func TestCreatePacket(t *testing.T) {
 				t.Fatalf("Expected error, got none")
 			}
 			wg.Wait()
-			if bytes.Compare(recv, tc.recv) != 0 {
+			if !bytes.Equal(recv, tc.recv) {
 				t.Fatalf("Expected: %v \t Got: %v", tc.recv, recv)
 			}
 		})
@@ -234,12 +233,12 @@ func TestExtractInformation(t *testing.T) {
 		recv []byte
 		err  string
 	}{
-		{name: "No file", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "noFile", fmt.Sprintf("%s/noFile", dir), logic}, err: "Could not open file"},
-		{name: "Not a svg", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", fmt.Sprintf("%s", notSvgFile.Name()), fmt.Sprintf("%s/not_a_svg", dir), logic}, err: "No end of header found"},
-		{name: "Without Comment", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", fmt.Sprintf("%s", withoutCommentFile.Name()), fmt.Sprintf("%s/without_comment", dir), logic}, err: "No end of header found"},
-		{name: "Valid003 svg", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", fmt.Sprintf("%s", validSvgFile003.Name()), fmt.Sprintf("%s/valid_003_svg", dir), logic}, recv: []byte{0, 0}},
-		{name: "Valid004 svg", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", fmt.Sprintf("%s", validSvgFile004.Name()), fmt.Sprintf("%s/valid_004_svg", dir), logic}, err: "Can't decode version"},
-		{name: "Invalid version", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", fmt.Sprintf("%s", invalidVersionFile.Name()), fmt.Sprintf("%s/invalid_version", dir), logic}, err: "Unrecognized version"},
+		{name: "No file", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", "noFile", fmt.Sprintf("%s/noFile", dir), logic}, err: "could not open file"},
+		{name: "Not a svg", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", notSvgFile.Name(), fmt.Sprintf("%s/not_a_svg", dir), logic}, err: "no end of header found"},
+		{name: "Without Comment", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", withoutCommentFile.Name(), fmt.Sprintf("%s/without_comment", dir), logic}, err: "no end of header found"},
+		{name: "Valid003 svg", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", validSvgFile003.Name(), fmt.Sprintf("%s/valid_003_svg", dir), logic}, recv: []byte{0, 0}},
+		{name: "Valid004 svg", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", validSvgFile004.Name(), fmt.Sprintf("%s/valid_004_svg", dir), logic}, err: "can't decode version"},
+		{name: "Invalid version", cfg: configs{1, 0, 0, 0, 0, 1, 1500, "", invalidVersionFile.Name(), fmt.Sprintf("%s/invalid_version", dir), logic}, err: "unrecognized version"},
 	}
 
 	for _, tc := range tests {
@@ -267,7 +266,7 @@ func TestExtractInformation(t *testing.T) {
 				t.Fatalf("Expected error, got none")
 			}
 			wg.Wait()
-			if bytes.Compare(recv, tc.recv) != 0 {
+			if !bytes.Equal(recv, tc.recv) {
 				t.Fatalf("Expected: %v \t Got: %v", tc.recv, recv)
 			}
 		})

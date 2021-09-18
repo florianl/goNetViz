@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"golang.org/x/sync/errgroup"
 	"io/ioutil"
 	"os"
 	"regexp"
 	"testing"
+
+	"golang.org/x/sync/errgroup"
 )
 
 var (
@@ -77,22 +78,24 @@ var (
 <rect x="1" y="1" width="1" height="1" style="fill:rgb(0,0,0)" />
 <rect x="2" y="1" width="1" height="1" style="fill:rgb(0,0,0)" />
 </svg>`
-	pcapHeader = []byte{
-		0xa1, 0xb2, 0xc3, 0xd4, /*	Magic Number	*/
-		0x00, 0x02, /*	Major Number	*/
-		0x00, 0x04, /*	Minor Number	*/
-		0x00, 0x00, 0x00, 0x00, /*	GMT to Local	*/
-		0x00, 0x00, 0x00, 0x00, /*	Accuracy	*/
-		0x00, 0x00, 0x00, 0x00, /*	Max captured Length	*/
-		0x00, 0x00, 0x00, 0x01, /*	Data Link Type	*/
-	}
 
-	fakePacket = []byte{
-		0x00, 0x00, 0x00, 0x00, /* Timestamp in seconds	*/
-		0x00, 0x00, 0x00, 0x00, /* Timestamp in microseconds	*/
-		0x00, 0x00, 0x00, 0x00, /* Number of Octets	*/
-		0x00, 0x00, 0x00, 0x00, /* Actual Length	*/
-	}
+	// pcapHeader = []byte{
+	//		0xa1, 0xb2, 0xc3, 0xd4, /*	Magic Number	*/
+	//		0x00, 0x02, /*	Major Number	*/
+	//		0x00, 0x04, /*	Minor Number	*/
+	//		0x00, 0x00, 0x00, 0x00, /*	GMT to Local	*/
+	//		0x00, 0x00, 0x00, 0x00, /*	Accuracy	*/
+	//		0x00, 0x00, 0x00, 0x00, /*	Max captured Length	*/
+	//		0x00, 0x00, 0x00, 0x01, /*	Data Link Type	*/
+	//	}
+
+	//	fakePacket = []byte{
+	//		0x00, 0x00, 0x00, 0x00, /* Timestamp in seconds	*/
+	//		0x00, 0x00, 0x00, 0x00, /* Timestamp in microseconds	*/
+	//		0x00, 0x00, 0x00, 0x00, /* Number of Octets	*/
+	//		0x00, 0x00, 0x00, 0x00, /* Actual Length	*/
+	//	}
+
 	fakeData = []byte{
 		0xa1, 0xb2, 0xc3, 0xd4, 0x00, 0x02, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0xff, 0xff, 0x00, 0x00, 0x00, 0x01, 0x58, 0x30, 0x2d, 0x32, 0x00, 0x04, 0x63, 0x31,
@@ -313,12 +316,12 @@ func TestInitSource(t *testing.T) {
 		pcap   bool
 		err    string
 	}{
-		{name: "No Source", input: "", pcap: false, err: "(Source is missing)|(Could not get file information)"},
-		{name: "Invalid File", input: "/invalid/file", pcap: false, err: "(No such file or directory)|(Could not get file information)"},
-		{name: "Non existing Device", input: "/dev/InvalidDevice", pcap: true, err: "(No such file or directory)|(No such device exists)|(Operation not permitted)"},
-		{name: "Invalid Filter", input: fmt.Sprintf("%s", fakePcap.Name()), pcap: false, filter: "noFilter", err: "syntax error"},
-		{name: "Unknown file format", input: fmt.Sprintf("%s", unknownFormat.Name()), pcap: true, err: "unknown file format"},
-		{name: "No Errors", input: fmt.Sprintf("%s", fakePcap.Name())},
+		{name: "No Source", input: "", pcap: false, err: "(source is missing)|(could not get file information)"},
+		{name: "Invalid File", input: "/invalid/file", pcap: false, err: "(no such file or directory)|(could not get file information)"},
+		{name: "Non existing Device", input: "/dev/InvalidDevice", pcap: true, err: "(No such file or directory)|(no such device exists)|(operation not permitted)"},
+		{name: "Invalid Filter", input: fakePcap.Name(), pcap: false, filter: "noFilter", err: "syntax error"},
+		{name: "Unknown file format", input: unknownFormat.Name(), pcap: true, err: "unknown file format"},
+		{name: "No Errors", input: fakePcap.Name()},
 		{name: "Folder As Input", input: testdir, err: "Can not handle"},
 	}
 
@@ -459,7 +462,7 @@ func TestCreateBytes(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			ret := createBytes(tc.slice, tc.bitsPerByte)
-			if bytes.Compare(ret, tc.ret) != 0 {
+			if !bytes.Equal(ret, tc.ret) {
 				t.Fatalf("Expected: %v \t Got: %v", tc.ret, ret)
 			}
 		})
@@ -505,10 +508,10 @@ func TestVisualize(t *testing.T) {
 		cfg  configs
 		err  string
 	}{
-		{name: "solder", cfg: configs{1, 2, 0, 0, solder, 1, 1500, "", fmt.Sprintf("%s", fakePcap.Name()), fmt.Sprintf("%s/solder", tdir), pipelineLogic}},
-		{name: "terminal", cfg: configs{24, 0, 0, 0, terminal, 1, 1500, "", fmt.Sprintf("%s", fakePcap.Name()), fmt.Sprintf("%s/terminal", tdir), pipelineLogic}},
-		{name: "timeslize", cfg: configs{1, 2, 0, 0, timeslize, 1, 1500, "", fmt.Sprintf("%s", fakePcap.Name()), fmt.Sprintf("%s/timeslize", tdir), pipelineLogic}},
-		{name: "No Source", cfg: configs{1, 2, 0, 0, timeslize, 1, 1500, "", "", fmt.Sprintf("%s/NoSource", tdir), noneLogic}, err: "(Source is missing)|(Could not get file information)"},
+		{name: "solder", cfg: configs{1, 2, 0, 0, solder, 1, 1500, "", fakePcap.Name(), fmt.Sprintf("%s/solder", tdir), pipelineLogic}},
+		{name: "terminal", cfg: configs{24, 0, 0, 0, terminal, 1, 1500, "", fakePcap.Name(), fmt.Sprintf("%s/terminal", tdir), pipelineLogic}},
+		{name: "timeslize", cfg: configs{1, 2, 0, 0, timeslize, 1, 1500, "", fakePcap.Name(), fmt.Sprintf("%s/timeslize", tdir), pipelineLogic}},
+		{name: "No Source", cfg: configs{1, 2, 0, 0, timeslize, 1, 1500, "", "", fmt.Sprintf("%s/NoSource", tdir), noneLogic}, err: "(source is missing)|(could not get file information)"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -563,8 +566,8 @@ func TestGetOperand(t *testing.T) {
 		{name: "0x00", val: "0x00", b: byte(0)},
 		{name: "a", val: "a", b: byte(10)},
 		{name: "0xFF", val: "0xFF", b: byte(255)},
-		{name: "1.1", val: "1.1", b: byte(0), e: "Could not convert"},
-		{name: "1,1", val: "1,1", b: byte(0), e: "Could not convert"},
+		{name: "1.1", val: "1.1", b: byte(0), e: "could not convert"},
+		{name: "1,1", val: "1,1", b: byte(0), e: "could not convert"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -768,8 +771,8 @@ func TestRun(t *testing.T) {
 		e    string
 	}{
 		{name: "No source", cfg: configs{2, 0, 0, 0, terminal, 1, 1500, "filter", "", "prefix", logic}, e: "No such file or directory"},
-		{name: "terminal", cfg: configs{2, 0, 0, 0, reverse, 1, 1500, "", fmt.Sprintf("%s", fakePcap.Name()), "prefix", logic}},
-		{name: "reverse", cfg: configs{2, 0, 0, 0, reverse, 1, 1500, "", fmt.Sprintf("%s", validSvgFile003.Name()), "prefix", logic}},
+		{name: "terminal", cfg: configs{2, 0, 0, 0, reverse, 1, 1500, "", fakePcap.Name(), "prefix", logic}},
+		{name: "reverse", cfg: configs{2, 0, 0, 0, reverse, 1, 1500, "", validSvgFile003.Name(), "prefix", logic}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

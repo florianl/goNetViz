@@ -194,17 +194,17 @@ func createTerminalVisualization(pkt1, pkt2 data, cfg configs) {
 
 func createImage(filename string, width, height int, content string, cfg configs) error {
 	if len(content) == 0 {
-		return fmt.Errorf("No content to write")
+		return fmt.Errorf("no content to write")
 	}
 
 	f, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0644)
 	if err != nil {
-		return fmt.Errorf("Could not open file %s: %s", filename, err.Error())
+		return fmt.Errorf("could not open file %s: %s", filename, err.Error())
 	}
 
 	if _, err := f.WriteString(fmt.Sprintf("<?xml version=\"1.0\"?>\n<svg width=\"%d\" height=\"%d\">\n", width, height)); err != nil {
 		f.Close()
-		return fmt.Errorf("Could not write header: %s", err.Error())
+		return fmt.Errorf("could not write header: %s", err.Error())
 	}
 
 	var source = cfg.input
@@ -212,21 +212,21 @@ func createImage(filename string, width, height int, content string, cfg configs
 	if _, err := f.WriteString(fmt.Sprintf("<!--\n\tgoNetViz \"%s\"\n\tScale=%d\n\tBitsPerPixel=%d\n\tDTG=\"%s\"\n\tSource=\"%s\"\n\tFilter=\"%s\"\n\tLogicGate=\"%s\"\n\tLogicValue=0x%X\n-->\n",
 		Version, cfg.scale, cfg.bpP, time.Now().UTC(), source, cfg.filter, cfg.logicOp.name, cfg.logicOp.value)); err != nil {
 		f.Close()
-		return fmt.Errorf("Could not write additional information: %s", err.Error())
+		return fmt.Errorf("could not write additional information: %s", err.Error())
 	}
 
 	if _, err := f.WriteString(content); err != nil {
 		f.Close()
-		return fmt.Errorf("Could not write content: %s", err.Error())
+		return fmt.Errorf("could not write content: %s", err.Error())
 	}
 
 	if _, err := f.WriteString("</svg>"); err != nil {
 		f.Close()
-		return fmt.Errorf("Could not write closing information: %s", err.Error())
+		return fmt.Errorf("could not write closing information: %s", err.Error())
 	}
 
 	if err := f.Close(); err != nil {
-		return fmt.Errorf("Could not close file %s: %s", filename, err.Error())
+		return fmt.Errorf("could not close file %s: %s", filename, err.Error())
 	}
 	return nil
 }
@@ -314,7 +314,6 @@ func handlePackets(g *errgroup.Group, input source, cfg configs, ch chan<- data)
 
 		ch <- data{len: plen, toa: toa, payload: logicGate(bytes, logicValue)}
 	}
-	return
 }
 
 func initPcapSource(input, filter string, device bool) (source, error) {
@@ -355,17 +354,17 @@ func initSource(input, filter string, pcap bool) (handle source, err error) {
 		device = true
 	}
 
-	if len(filter) > 0 || pcap == true {
+	if len(filter) > 0 || pcap {
 		return initPcapSource(input, filter, device)
 	}
 
 	if device {
-		return nil, fmt.Errorf("Please open networking interface with pcap support")
+		return nil, fmt.Errorf("please open networking interface with pcap support")
 	}
 
 	fi, err := os.Lstat(input)
 	if err != nil {
-		return nil, fmt.Errorf("Could not get file information")
+		return nil, fmt.Errorf("could not get file information")
 	}
 	mode := fi.Mode()
 
@@ -401,7 +400,7 @@ func getOperand(val string) (byte, error) {
 	}
 
 	if err != nil {
-		return 0x00, fmt.Errorf("Could not convert %s", val)
+		return 0x00, fmt.Errorf("could not convert %s", val)
 	}
 
 	if i < 0 || i > 255 {
