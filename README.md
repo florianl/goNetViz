@@ -5,7 +5,7 @@ This is `goNetViz` and it is written in [golang](https://golang.org/).
 `goNetViz` visualizes your network traffic, either by reading a file or
 attaching to a network interface.
 
-[![Coverage Status](https://coveralls.io/repos/github/florianl/goNetViz/badge.svg?branch=master)](https://coveralls.io/github/florianl/goNetViz?branch=master)
+[![Coverage Status](https://coveralls.io/repos/github/florianl/goNetViz/badge.svg?branch=master)](https://coveralls.io/github/florianl/goNetViz?branch=master) [![Go](https://github.com/florianl/goNetViz/actions/workflows/go.yml/badge.svg)](https://github.com/florianl/goNetViz/actions/workflows/go.yml)
 
 
         $ ./goNetViz -help
