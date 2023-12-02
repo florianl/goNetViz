@@ -611,7 +611,7 @@ func createBytes(slice []int, bitsPerByte int) []byte {
 func run(cfg configs) error {
 	g, ctx := errgroup.WithContext(context.Background())
 	ctx, cancel := context.WithCancel(ctx)
-	osSig := make(chan os.Signal)
+	osSig := make(chan os.Signal, 1)
 	signal.Notify(osSig, os.Interrupt)
 	defer func() {
 		signal.Stop(osSig)
